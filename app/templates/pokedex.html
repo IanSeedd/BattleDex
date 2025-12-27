@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pokédex Completa</title>
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Pokédex Filtrada</h1>
+        <p class="total">Total: {{ total }} Pokémon</p>
+        
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+        
+        <div class="pokemon-grid">
+            {% for pokemon in pokemons %}
+            <div class="pokemon-card">
+                <div class="pokemon-number">#{{ pokemon.id|stringformat:"04d" }}</div>
+                
+                <!-- Container para múltiplas opções de imagem -->
+                <div class="image-container">
+                    <!-- 3D Oficial (primeira opção) -->
+                    <img 
+                        src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{{ pokemon.id }}.png" 
+                        alt="{{ pokemon.name }}"
+                        class="primary-img"
+                        style="display: block;"
+                        onerror="loadAlternativeImage(this, {{ pokemon.id }})"
+                    >
+                </div>
+                <div class="pokemon-name">{{ pokemon.name }}</div>
+            </div>
+            {% empty %}
+            <p class="empty">Nenhum Pokémon carregado</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+    // Função para carregar imagens alternativas em ordem de preferência
+    function loadAlternativeImage(imgElement, pokemonId) {
+        const sources = [
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${pokemonId}.png`,
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/${pokemonId}.svg`,
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/shiny/${pokemonId}.png`,
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
+            'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png' // fallback
+        ];
+        
+        let currentIndex = 0;
+        
+        function tryNextSource() {
+            if (currentIndex >= sources.length) {
+                console.log(`Todas as fontes falharam para Pokémon #${pokemonId}`);
+                return;
+            }
+            
+            const testImg = new Image();
+            testImg.onload = function() {
+                // Se carregou, usa esta imagem
+                imgElement.src = sources[currentIndex];
+            };
+            testImg.onerror = function() {
+                // Tenta próxima fonte
+                currentIndex++;
+                tryNextSource();
+            };
+            testImg.src = sources[currentIndex];
+        }
+        
+        tryNextSource();
+    }
+    
+    // Pré-carrega todas as imagens para melhor experiência
+    document.addEventListener('DOMContentLoaded', function() {
+        const images = document.querySelectorAll('.primary-img');
+        images.forEach(img => {
+            // Já inicia o carregamento
+            img.loading = 'lazy';
+        });
+    });
+    </script>
+</body>
+</html>
