@@ -1,86 +1,168 @@
+{% extends 'base.html' %} 
+
+{% block title %}Menu Pokémon - Pokedex{% endblock %}
+
 {% load static %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Pokédex Completa</title>
-    <link rel="stylesheet" href="{% static 'style.css' %}">
-</head>
-<body>
-    <div class="container">
-        <h1>Pokédex Filtrada</h1>
-        <p class="total">Total: {{ total }} Pokémon</p>
+
+{% block content %}
+<div class="fixed-background">
+        <div class="pokeball-pattern"></div>
+    </div>
+
+   <div class="rotom-header">
+        <div class="header-neon-line"></div>
         
+        <a href="{% url 'home' %}" class="home-btn" title="Voltar ao Menu Principal">
+            ❰ </a>
+
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" class="rotom-search" placeholder="Pesquisar Pokémon...">
+        </div>
+    </div>
+
+    <div class="container pokedex-container">
+        <div class="text-center">
+            <h1>Pokédex Nacional</h1>
+            <p class="total-counter">Dados Carregados: {{ total }}</p>
+        </div>
+
         {% if error %}
-            <p class="error">{{ error }}</p>
+            <div class="alert alert-danger">{{ error }}</div>
         {% endif %}
         
-        <div class="pokemon-grid">
+<div class="pokemon-grid" id="pokedexGrid">
             {% for pokemon in pokemons %}
-            <div class="pokemon-card">
-                <div class="pokemon-number">#{{ pokemon.id|stringformat:"04d" }}</div>
-                
-                <!-- Container para múltiplas opções de imagem -->
-                <div class="image-container">
-                    <!-- 3D Oficial (primeira opção) -->
-                    <img 
-                        src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{{ pokemon.id }}.png" 
-                        alt="{{ pokemon.name }}"
-                        class="primary-img"
-                        style="display: block;"
-                        onerror="loadAlternativeImage(this, {{ pokemon.id }})"
-                    >
+            <a href="{% url 'detalhe_pokemon' pokemon.id %}" class="pokemon-link">
+                <div class="pokemon-card" data-name="{{ pokemon.name }}" data-id="{{ pokemon.id }}">
+                    <div class="pokemon-number">#{{ pokemon.id|stringformat:"04d" }}</div>
+                    
+                    <div class="image-container">
+                        <div class="pokeball-floor"></div>
+                        
+                        <img 
+                            src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/{{ pokemon.id }}.gif"
+                            alt="{{ pokemon.name }}"
+                            class="primary-img"
+                            loading="lazy" 
+                            onerror="loadAlternativeSprite(this, {{ pokemon.id }})"
+                        >
+                    </div>
+                    
+                    <div class="pokemon-name">{{ pokemon.name }}</div>
+                    <div class="types-container" id="types-{{ pokemon.id }}"></div>
                 </div>
-                <div class="pokemon-name">{{ pokemon.name }}</div>
-            </div>
+            </a>
             {% empty %}
-            <p class="empty">Nenhum Pokémon carregado</p>
+            <div class="col-12 text-center text-white">
+                <h3>Nenhum Pokémon encontrado.</h3>
+            </div>
             {% endfor %}
+        </div>
+        
+        <div id="noResults" style="display: none; text-align: center; color: white; margin-top: 50px;">
+            <h3>Nenhum Pokémon encontrado.</h3>
         </div>
     </div>
 
     <script>
-    // Função para carregar imagens alternativas em ordem de preferência
-    function loadAlternativeImage(imgElement, pokemonId) {
-        const sources = [
-            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${pokemonId}.png`,
-            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/${pokemonId}.svg`,
-            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/shiny/${pokemonId}.png`,
-            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
-            'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png' // fallback
-        ];
-        
-        let currentIndex = 0;
-        
-        function tryNextSource() {
-            if (currentIndex >= sources.length) {
-                console.log(`Todas as fontes falharam para Pokémon #${pokemonId}`);
-                return;
-            }
-            
-            const testImg = new Image();
-            testImg.onload = function() {
-                // Se carregou, usa esta imagem
-                imgElement.src = sources[currentIndex];
-            };
-            testImg.onerror = function() {
-                // Tenta próxima fonte
-                currentIndex++;
-                tryNextSource();
-            };
-            testImg.src = sources[currentIndex];
-        }
-        
-        tryNextSource();
-    }
-    
-    // Pré-carrega todas as imagens para melhor experiência
+    // 1. SISTEMA DE BUSCA (ATUALIZADO PARA FUNCIONAR COM O LINK)
     document.addEventListener('DOMContentLoaded', function() {
-        const images = document.querySelectorAll('.primary-img');
-        images.forEach(img => {
-            // Já inicia o carregamento
-            img.loading = 'lazy';
+        const searchInput = document.getElementById('searchInput');
+        // Selecionamos o elemento pai (o link) para esconder/mostrar tudo
+        const links = document.querySelectorAll('.pokemon-link');
+        const noResults = document.getElementById('noResults');
+
+        searchInput.addEventListener('keyup', function(e) {
+            const term = e.target.value.toLowerCase().trim();
+            let hasVisible = false;
+
+            links.forEach(link => {
+                // Buscamos os dados no card dentro do link
+                const card = link.querySelector('.pokemon-card');
+                const name = card.getAttribute('data-name').toLowerCase();
+                const id = card.getAttribute('data-id');
+                const paddedId = id.toString().padStart(4, '0');
+
+                if (name.includes(term) || id.includes(term) || paddedId.includes(term)) {
+                    link.style.display = 'block'; // Mostra o link inteiro
+                    hasVisible = true;
+                } else {
+                    link.style.display = 'none'; // Esconde o link inteiro
+                }
+            });
+
+            noResults.style.display = hasVisible ? 'none' : 'block';
         });
+        
+        initTypeLoader();
     });
+
+    // 2. CARREGAMENTO DE ÍCONES DE TIPO
+    function initTypeLoader() {
+        const cards = document.querySelectorAll('.pokemon-card');
+        const loadedTypes = new Set();
+
+        const observer = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const card = entry.target;
+                    const id = card.getAttribute('data-id');
+                    
+                    if (!loadedTypes.has(id)) {
+                        fetchTypes(id);
+                        loadedTypes.add(id);
+                        obs.unobserve(card);
+                    }
+                }
+            });
+        }, { rootMargin: "100px" });
+
+        cards.forEach(card => observer.observe(card));
+    }
+
+    function fetchTypes(id) {
+        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById(`types-${id}`);
+                container.innerHTML = ''; 
+                
+                data.types.forEach(t => {
+                    const typeName = t.type.name;
+                    const badge = document.createElement('div');
+                    badge.className = `type-badge type-${typeName}`;
+                    badge.innerHTML = `<img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${typeName}.svg" alt="${typeName}">`;
+                    badge.title = typeName;
+                    container.appendChild(badge);
+                });
+            })
+            .catch(err => console.error('Erro ao carregar tipo:', err));
+    }
+
+    // 3. FALLBACK DE IMAGEM
+    function loadAlternativeSprite(imgElement, pokemonId) {
+        imgElement.onerror = null;
+        const sources = [
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${pokemonId}.png`,
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`,
+            `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png`
+        ];
+        let currentIndex = 0;
+        function tryNext() {
+            if (currentIndex >= sources.length) return;
+            const temp = new Image();
+            temp.onload = () => { 
+                imgElement.src = sources[currentIndex];
+                if(currentIndex > 0) imgElement.style.imageRendering = 'auto';
+            };
+            temp.onerror = () => { currentIndex++; tryNext(); };
+            temp.src = sources[currentIndex];
+        }
+        tryNext();
+    }
     </script>
+{% endblock %}
 </body>
 </html>

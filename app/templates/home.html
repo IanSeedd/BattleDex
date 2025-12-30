@@ -1,0 +1,48 @@
+{% extends 'base.html' %} 
+{% load static %}
+
+{% block title %}Menu Pokémon - Home{% endblock %}
+
+{% block content %}
+<div class="scanlines"></div>
+
+    <div class="scene-container">
+        
+        <div class="pokeball-pattern"></div>
+        
+        <img src="/static/img/joy1.png" alt="Enfermeira Joy" class="character-img">
+
+        <div class="holo-menu">
+            <h2 class="holo-title">BATTLEDEX SYSTEM</h2>
+                
+                <a href="{% url 'pokedex' %}" class="kalos-btn">
+                    <span>🔍</span> POKÉDEX
+                </a>
+                
+                <a href="#" class="kalos-btn">
+                    <span>🎒</span> BOX
+                </a>
+                
+                <a href="#" class="kalos-btn">
+                    <span>⚔️</span> BATALHAS
+                </a>
+                
+                <a href="#" class="kalos-btn">
+                    <span>⚙️</span> OPÇÕES
+                </a>
+
+            </div>
+            <div class="rotom-container">
+                <img src="https://64.media.tumblr.com/9b0acdb8e56358bc602c26ee931af2d0/tumblr_inline_ozxnnj7neS1v17q9o_250.pnj" class="rotom-img" alt="Rotom Dex">
+            </div>
+        <div class="counter-desk">
+            <div class="pokeball-logo"></div>
+        </div>
+        <div class="counter-desk">
+            <div class="pokeball-logo"></div>
+        </div>
+        
+    </div>
+{% endblock %}
+</body>
+</html>
