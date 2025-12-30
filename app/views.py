@@ -1,115 +1,90 @@
 import requests
 from django.shortcuts import render
-import re
+POKEAPI = "https://pokeapi.co/api/v2"
+# --- Tratamento de formas ---
+# Formas permitidas
+ALLOWED_FORMS = (
+    "-mega", "-gmax", "-alola", "-galar",
+    "-hisui", "-paldea", "-battle-bond"
+)
+
+# Formas proibidas
+BLOCKED_FORMS = (
+    "-ash",
+    "-totem",
+    "-cap"
+)
+
+def home(request):
+    return render(request, 'home.html')
 
 def pokedex(request):
     try:
-        # Busca TODOS os pokémons de uma vez
-        response = requests.get('https://pokeapi.co/api/v2/pokemon?limit=1300')
+        # O limite 1025 garante que pegar até o fim da 9ª geração (Pecharunt)
+        response = requests.get('https://pokeapi.co/api/v2/pokemon-species?limit=1025')
         data = response.json()
         
         pokemons = []
-        
-        # Lista de nomes base que já processamos
-        processed_bases = set()
-        
         for pokemon in data['results']:
-            pokemon_id = pokemon['url'].split('/')[-2]
-            pokemon_name = pokemon['name']
+            # Extraímos a entrada da pokedex da URL, criando um int.
+            pokemon_id = int(pokemon['url'].split('/')[-2]) # A cada / o texto é separado e no final ele pega a posição -2 da lista criada e transforma em INT
             
-            # Extrai nome base (primeira parte antes do hífen)
-            base_name = pokemon_name.split('-')[0]
+            # Limpa o nome tirando os "-"
+            display_name = pokemon['name'].replace('-', ' ').title()
             
-            # Se for um número, é provavelmente uma forma especial
-            if re.search(r'-\d+$', pokemon_name):
-                continue
-            
-            # Lista de formas que devem ser ignoradas
-            ignore_patterns = [
-                '-mega', '-gmax', '-totem', '-eternamax', '-primal',
-                '-alola', '-galar', '-hisui', '-paldea',
-                '-segment', '-hero', '-disguised', '-busted',
-                '-amped', '-low-key', '-midday', '-midnight', '-dusk', '-dawn',
-                '-ash', '-partner', '-cap', '-origin', '-school',
-                '-therian', '-blade', '-complete',
-                '-sunny', '-rainy', '-snowy',
-                '-attack', '-defense', '-speed',
-                '-red', '-blue', '-green', '-yellow', '-orange', '-indigo', '-violet',
-                '-meteor', '-pau', '-pom-pom', '-baile', '-sensu',
-                '-ice', '-frost', '-heat', '-wash', '-fan', '-mow', '-trash', '-sky',
-                '-land', '-incarnate', '-male', '-female',
-                '-average', '-small', '-large', '-super',
-                '-10', '-50', '-100', '-west', '-east'
-            ]
-            
-            # Verifica se é uma forma que deve ser ignorada
-            should_ignore = False
-            for pattern in ignore_patterns:
-                if pattern in pokemon_name:
-                    should_ignore = True
-                    break
-            
-            if should_ignore:
-                continue
-            
-            # Se o nome base já foi processado e este tem hífen, pula
-            # (exceto para pokémons que naturalmente têm hífen no nome)
-            exceptions_with_hyphen = [
-                'ho-oh', 'porygon-z', 'jangmo-o', 'hakamo-o', 'kommo-o',
-                'type-null', 'tapu-koko', 'tapu-lele', 'tapu-bulu', 'tapu-fini',
-                'mr-mime', 'mr-rime', 'mime-jr', 'wo-chien', 'chien-pao',
-                'ting-lu', 'chi-yu', 'great-tusk', 'scream-tail', 'brute-bonnet',
-                'flutter-mane', 'slither-wing', 'sandy-shocks', 'iron-treads',
-                'iron-bundle', 'iron-hands', 'iron-jugulis', 'iron-moth',
-                'iron-thorns', 'roaring-moon', 'iron-valiant', 'walking-wake',
-                'iron-leaves'
-            ]
-            
-            if base_name in processed_bases and '-' in pokemon_name and pokemon_name not in exceptions_with_hyphen:
-                continue
-            
-            # Formata o nome para exibição
-            display_name = pokemon_name
-            if '-' in pokemon_name and pokemon_name not in exceptions_with_hyphen:
-                # Para nomes com hífen, pega apenas a primeira parte
-                display_name = base_name
-            
-            display_name = display_name.replace('-', ' ').title()
-            
+            # Apenas deixa os nomes com hifén (casos especiais)
+            if display_name == "Ho Oh": display_name = "Ho-Oh"
+            if display_name == "Porygon Z": display_name = "Porygon-Z"
+
             pokemons.append({
-                'id': int(pokemon_id),
-                'name': display_name,
-                'original_name': pokemon_name
+                'id': pokemon_id, # Número da pokedex
+                'name': display_name, # Nome fora do formato slug
+                'url_name': pokemon['name'] # Tratamento de url para futura pagina de detalhes 
             })
-            
-            processed_bases.add(base_name)
         
-        # Remove duplicatas por nome de exibição
-        unique_pokemons = []
-        seen_names = set()
-        
-        for pokemon in pokemons:
-            if pokemon['name'] not in seen_names:
-                unique_pokemons.append(pokemon)
-                seen_names.add(pokemon['name'])
-        
-        # Ordena por ID
-        unique_pokemons.sort(key=lambda x: x['id'])
-        
-        print(f"Total de Pokémon únicos: {len(unique_pokemons)}")
-        
-        # Log dos primeiros 10 para debug
-        for i, p in enumerate(unique_pokemons[:10]):
-            print(f"{i+1}. #{p['id']:04d} - {p['name']} ({p['original_name']})")
+        # Ordena por entrada da pokedex
+        pokemons.sort(key=lambda x: x['id']) # Lambda para otimizar o codigo sem criar uma função extra para ordenar (Os "x": 1°- Pokémon(parametro), 2°-ID(return da func))
         
         context = {
-            'pokemons': unique_pokemons,
-            'total': len(unique_pokemons)
+            'pokemons': pokemons,
+            'total': len(pokemons)
         }
         return render(request, 'pokedex.html', context)
         
-    except Exception as e:
-        print(f"Erro: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception as e: # Só para erros
         return render(request, 'pokedex.html', {'pokemons': [], 'error': str(e)})
+    
+def detalhe_pokemon(request, pokemon_id):
+    try:
+        pokemon_res = requests.get(f"{POKEAPI}/pokemon/{pokemon_id}")
+        pokemon_data = pokemon_res.json()
+
+        species_res = requests.get(pokemon_data["species"]["url"])
+        species_data = species_res.json()
+
+        filtered_varieties = []
+        for v in species_data["varieties"]:
+            name = v["pokemon"]["name"]
+            # Extrair ID da URL: https://pokeapi.co/api/v2/pokemon/10033/ -> 10033
+            v_id = v["pokemon"]["url"].split('/')[-2]
+
+            # 1. Bloqueia formas proibidas
+            if any(block in name for block in BLOCKED_FORMS):
+                continue
+
+            # 2. Se for a forma padrão OU uma das permitidas, adiciona
+            if v["is_default"] or any(allowed in name for allowed in ALLOWED_FORMS):
+                filtered_varieties.append({
+                    "id": v_id,
+                    "name": name,
+                    "is_default": v["is_default"]
+                })
+
+        context = {
+            "pokemon_id": pokemon_id,
+            "species_name": species_data["name"],
+            "varieties": filtered_varieties, # Enviando a lista filtrada
+        }
+        return render(request, "detalhe_pokemon.html", context)
+    except Exception as e:
+        return render(request, "detalhe_pokemon.html", {"pokemon_id": pokemon_id, "error": str(e)})

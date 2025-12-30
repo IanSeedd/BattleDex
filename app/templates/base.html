@@ -1,0 +1,156 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Pokémon App{% endblock %}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+
+    
+</head>
+<body>
+
+    {% block content %}
+    {% endblock %}
+
+    <audio id="bg-music" loop>
+        <source src="{% static 'audio/pokemon_center.mp3' %}" type="audio/mpeg">
+    </audio>
+
+    <button id="music-toggle" style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: rgba(13, 17, 23, 0.9);
+        border: 2px solid #D92525;
+        color: #D92525;
+        font-size: 24px;
+        z-index: 2147483647; /* Valor máximo possível no CSS */
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    ">🔇</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+   <script>
+        function initAudioSystem() {
+            var audio = document.getElementById("bg-music");
+            var btn = document.getElementById("music-toggle");
+            
+            audio.volume = 0.3;
+
+            // --- 1. FUNÇÕES VISUAIS ---
+            function updateIcon() {
+                if (!audio.paused) {
+                    btn.innerHTML = "🔊";
+                    btn.style.boxShadow = "0 0 15px #64D7F4";
+                    btn.style.borderColor = "#64D7F4";
+                    btn.style.color = "#64D7F4";
+                } else {
+                    btn.innerHTML = "🔇";
+                    btn.style.boxShadow = "none";
+                    btn.style.borderColor = "#D92525";
+                    btn.style.color = "#D92525";
+                }
+            }
+
+            // --- 2. FUNÇÕES DE PLAY/PAUSE ---
+            function playAudio() {
+                var playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        localStorage.setItem('musicStatus', 'on');
+                        updateIcon();
+                    }).catch(error => {
+                        console.log("Autoplay bloqueado.");
+                        updateIcon(); 
+                        document.body.addEventListener('click', forcePlayOnFirstClick, { once: true });
+                    });
+                }
+            }
+
+            function pauseAudio() {
+                audio.pause();
+                localStorage.setItem('musicStatus', 'off');
+                updateIcon();
+            }
+
+            function forcePlayOnFirstClick() {
+                if(localStorage.getItem('musicStatus') === 'on') {
+                    playAudio();
+                }
+            }
+
+            // --- 3. NOVA LÓGICA: SINCRONIA DE TEMPO ---
+            
+            // A) Salva o tempo atual a cada atualização (enquanto toca)
+            audio.addEventListener('timeupdate', function() {
+                // Salva apenas se o áudio estiver tocando para evitar salvar "0" ao carregar
+                if (!audio.paused) {
+                    localStorage.setItem('audioTime', audio.currentTime);
+                }
+            });
+
+            // B) Recupera o tempo salvo
+            var savedTime = localStorage.getItem('audioTime');
+            if (savedTime) {
+                // Recupera o float e aplica.
+                // Importante: A diferença precisa ser maior que 1 seg para evitar "pulos" estranhos no reload normal
+                if (Math.abs(audio.currentTime - savedTime) > 1) {
+                     audio.currentTime = parseFloat(savedTime);
+                }
+            }
+
+            // --- 4. AÇÃO DO BOTÃO ---
+            var newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            btn = newBtn;
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (audio.paused) {
+                    playAudio();
+                } else {
+                    pauseAudio();
+                }
+            });
+
+            // --- 5. VERIFICAÇÃO INICIAL ---
+            var userWantsMusic = localStorage.getItem('musicStatus');
+            
+            if (userWantsMusic === 'on') {
+                playAudio();
+            } else {
+                updateIcon();
+            }
+        }
+
+        // Roda sempre que a página aparece (inclusive no botão Voltar)
+        window.addEventListener('pageshow', function(event) {
+            initAudioSystem();
+        });
+        
+        // Salva o tempo uma última vez ao sair da página para garantir precisão
+        window.addEventListener('pagehide', function() {
+            var audio = document.getElementById("bg-music");
+            if(audio && !audio.paused) {
+                localStorage.setItem('audioTime', audio.currentTime);
+            }
+        });
+
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
