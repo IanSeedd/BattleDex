@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Análise BattleDex - Detalhes{% endblock %}
+{% block content %}
+<audio id="shinySound"><source src="{% static 'audio/shiny.mp3' %}" type="audio/mpeg"></audio>
+    <audio id="megaSound"><source src="{% static 'audio/mega_evolve.mp3' %}" type="audio/mpeg"></audio>
+    <div class="pokeball-pattern"></div>
+    
+    <div id="megaIntroOverlay" class="mega-overlay">
+        <div class="mega-symbol-container">
+            <img src="https://www.clipartmax.com/png/full/195-1954727_pokemon-mega-evolution-symbol-by-narkh-mega-evolution-symbol.png" class="mega-icon-img" alt="Mega Key">
+        </div>
+        <div class="mega-flash"></div>
+    </div>
+
+    <div class="fixed-background"></div>
+
+    <div class="detail-header">
+        <a href="{% url 'pokedex' %}" class="back-btn">
+            <span>◄</span> Voltar para Pokédex
+        </a>
+    </div>
+
+    <div class="detail-container">
+        
+        <div class="left-col">
+            <div class="panel-box desc-box">
+                <h3>Registro Rotom</h3>
+                <p id="flavorText" class="flavor-text">Carregando...</p>
+            </div>
+
+            <div class="panel-box evo-box">
+                <h3>Linha Evolutiva</h3>
+                <div id="evoChain" class="evo-chain"></div>
+            </div>
+            
+            <div class="panel-box special-controls">
+                <button id="shinyToggleBtn" onclick="toggleShiny()" class="shiny-btn">
+                    <span>✨</span> <span id="shinyBtnText">Visualizar Shiny</span>
+                </button>
+                
+                <button id="megaEvolveBtn" class="mega-evolve-btn" style="display: none;">
+                    <span>🧬</span> MEGA EVOLUIR
+                </button>
+
+                <button id="backToOriginalBtn" class="original-btn" style="display: none;">
+                    <span>↩</span> FORMA ORIGINAL
+                </button>
+            </div>
+        </div>
+
+        <div class="center-stage">
+            <div class="pkmn-id-badge">ID: #{{ pokemon_id|stringformat:"04d" }}</div>
+            
+            <div class="pkmn-header">
+                {% if pokemon_id > 1 %}
+                <a href="{% url 'detalhe_pokemon' pokemon_id|add:'-1' %}" class="nav-btn">❮</a>
+                {% else %}
+                <span class="nav-btn" style="opacity:0.5; cursor:default;">❮</span>
+                {% endif %}
+                <h1 id="pkmnName" class="pkmn-name">...</h1>
+                <a href="{% url 'detalhe_pokemon' pokemon_id|add:'1' %}" class="nav-btn">❯</a>
+            </div>
+
+            <div id="typesContainer" class="types-row"></div>
+
+            <div class="holo-container">
+                <div class="platform-base">
+                    <div class="platform-grid"></div>
+                </div>
+                <img id="mainImg" src="" alt="Pokemon" class="main-image">
+                <div id="sparkleContainer" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+            </div>
+        </div>
+
+        <div class="right-col">
+            <div class="panel-box moves-box">
+                <h3>Moveset (Level Up)</h3>
+                <div id="movesList" class="moves-list">
+                    <div style="text-align:center; padding:20px; color:#888;">Carregando...</div>
+                </div>
+            </div>
+
+            <div class="panel-box">
+                <h3 class="stats-header">Dados Físicos</h3>
+                <div class="info-grid" style="display: flex; justify-content: space-around; text-align: center;">
+                    <div class="info-item">
+                        <h4 style="color:#64D7F4; font-size:0.8rem;">Altura</h4>
+                        <p id="pkmnHeight" style="color:white; font-size:1.2rem; font-weight:bold;">-- m</p>
+                    </div>
+                    <div class="info-item">
+                        <h4 style="color:#64D7F4; font-size:0.8rem;">Peso</h4>
+                        <p id="pkmnWeight" style="color:white; font-size:1.2rem; font-weight:bold;">-- kg</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bottom-section" id="varietiesSection" style="display:none;">
+            <h3>Formas Alternativas & Mega Evoluções</h3>
+            <div id="varietiesContainer" class="varieties-container"></div>
+        </div>
+    </div>
+
+<script>
+        const POKEMON_ID = {{ pokemon_id }};
+        let isShiny = false;
+        let spriteNormal = '';
+        let spriteShiny = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPokemonData(POKEMON_ID);
+        });
+
+        async function fetchPokemonData(id) {
+            try {
+                const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+                if (!res.ok) throw new Error('Pokemon not found');
+                const data = await res.json();
+
+                // 1. TOCA O CRY (SOM)
+                if (data.cries && data.cries.latest) {
+                    let audio = new Audio(data.cries.latest);
+                    audio.volume = 0.3;
+                    audio.play().catch(e => console.log('Autoplay bloqueado pelo navegador'));
+                }
+
+                // 2. NOME PRINCIPAL TRATADO
+                const nameEl = document.getElementById('pkmnName');
+                // Aplica o tratamento de nome no título (ex: Mimikyu Disguised -> Mimikyu)
+                nameEl.textContent = formatPokemonName(data.name, data.species.name);
+                
+                if (data.name.includes('-mega')) {
+                    nameEl.classList.add('mega-text-effect');
+                } else {
+                    nameEl.classList.remove('mega-text-effect');
+                }
+
+                document.getElementById('pkmnHeight').textContent = (data.height / 10).toFixed(1) + ' m';
+                document.getElementById('pkmnWeight').textContent = (data.weight / 10).toFixed(1) + ' kg';
+
+                // 3. IMAGENS
+                const animGif = data.sprites.versions['generation-v']['black-white'].animated.front_default;
+                const animShiny = data.sprites.versions['generation-v']['black-white'].animated.front_shiny;
+                const staticImg = data.sprites.front_default;
+                const staticShinyImg = data.sprites.front_shiny;
+
+                spriteNormal = animGif || staticImg;
+                spriteShiny = animShiny || staticShinyImg;
+                
+                const imgEl = document.getElementById('mainImg');
+                imgEl.src = spriteNormal;
+
+                // 4. TIPOS
+                const typesContainer = document.getElementById('typesContainer');
+                typesContainer.innerHTML = '';
+                data.types.forEach(t => {
+                    const div = document.createElement('div');
+                    div.className = `type-badge bg-type-${t.type.name}`;
+                    div.title = t.type.name;
+                    div.innerHTML = `<img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${t.type.name}.svg" class="type-icon">`;
+                    typesContainer.appendChild(div);
+                });
+
+                loadMoves(data.moves);
+
+                if (data.species && data.species.url) {
+                    fetchSpeciesData(data.species.url);
+                }
+
+            } catch (e) { console.error(e); }
+        }
+
+        async function fetchSpeciesData(url) {
+            try {
+                const res = await fetch(url);
+                if(!res.ok) return;
+                const data = await res.json();
+
+                const entry = data.flavor_text_entries.find(e => e.language.name === 'en');
+                if(entry) document.getElementById('flavorText').textContent = entry.flavor_text.replace(/[\f\n\r]/g, ' ');
+
+                fetchEvoChain(data.evolution_chain.url);
+
+                if (POKEMON_ID != data.id) {
+                    const backBtn = document.getElementById('backToOriginalBtn');
+                    backBtn.style.display = 'flex';
+                    backBtn.onclick = () => window.location.href = `/pokedex/${data.id}/`;
+                }
+
+                // 4. VARIANTES FILTRADAS (Django Context)
+                const filteredVarieties = [
+                    {% for v in varieties %}
+                        { id: "{{ v.id }}", name: "{{ v.name }}" }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+
+                if (filteredVarieties.length > 1) {
+                    document.getElementById('varietiesSection').style.display = 'block';
+                    const vContainer = document.getElementById('varietiesContainer');
+                    vContainer.innerHTML = ''; 
+
+                    filteredVarieties.forEach(v => {
+                        if(v.id == POKEMON_ID) return;
+
+                        const div = document.createElement('div');
+                        div.className = 'variety-card';
+                        
+                        // APLICA TRATAMENTO NO NOME DA VARIANTE (ex: charizard-mega-y -> Mega Charizard Y)
+                        const displayName = formatPokemonName(v.name, data.name);
+
+                        div.innerHTML = `
+                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${v.id}.png" class="variety-img">
+                            <span class="variety-name">${displayName}</span>
+                        `;
+                        
+                        div.onclick = () => {
+                            if (v.name.includes('-mega')) {
+                                triggerMegaAnimationAndGo(v.id);
+                            } else {
+                                window.location.href = `/pokedex/${v.id}/`;
+                            }
+                        };
+                        vContainer.appendChild(div);
+                    });
+                }
+            } catch (e) { console.error("Erro ao carregar espécies:", e); }
+        }
+
+        function formatPokemonName(name, speciesName) {
+            // 1. Isola o nome da forma (ex: 'charizard-mega-y' -> 'mega y')
+            let formName = name.replace(speciesName, '').replace(/-/g, ' ').trim();
+            
+            // Se não houver forma ou for um termo irrelevante, retorna apenas o nome da espécie (ex: Mimikyu)
+            if (!formName || formName === 'disguised' || formName === 'normal' || formName === 'default') {
+                return speciesName.charAt(0).toUpperCase() + speciesName.slice(1);
+            }
+
+            // 2. Formata a espécie e as palavras da forma com a primeira letra maiúscula
+            let formattedSpecies = speciesName.charAt(0).toUpperCase() + speciesName.slice(1);
+            let words = formName.split(' ');
+            let capitalizedWords = words.map(w => w.charAt(0).toUpperCase() + w.slice(1));
+
+            // 3. Regra de Reordenação com Hífen (Mega, Gmax, Alola, etc)
+            const prefixes = ['Mega', 'Gmax', 'Alola', 'Galar', 'Hisui', 'Paldea'];
+            
+            // Verifica se a primeira palavra da forma é um dos prefixos conhecidos
+            let prefixIndex = capitalizedWords.findIndex(w => prefixes.includes(w));
+
+            if (prefixIndex !== -1) {
+                let prefix = capitalizedWords[prefixIndex];
+                // Remove o prefixo da lista de palavras para não duplicar
+                capitalizedWords.splice(prefixIndex, 1);
+                let restOfForm = capitalizedWords.join(' '); // Sobra o 'Y', 'X', etc.
+                
+                // Retorna no formato: Mega-Charizard Y
+                return `${prefix}-${formattedSpecies}${restOfForm ? ' ' + restOfForm : ''}`;
+            }
+
+            // Caso não seja um prefixo conhecido (ex: Kyurem White), mantém o padrão original
+            return `${formattedSpecies} ${capitalizedWords.join(' ')}`;
+        }
+        
+        function triggerMegaAnimationAndGo(targetId) {
+            const overlay = document.getElementById('megaIntroOverlay');
+            const sound = document.getElementById('megaSound');
+            overlay.classList.add('active');
+            if(sound) { sound.volume = 0.4; sound.currentTime = 0; sound.play().catch(()=>{}); }
+            setTimeout(() => { window.location.href = `/pokedex/${targetId}/`; }, 2200);
+        }
+
+        async function loadMoves(moves) {
+            const list = document.getElementById('movesList');
+            list.innerHTML = '';
+            const levelMoves = moves.filter(m => m.version_group_details[0].move_learn_method.name === 'level-up');
+            levelMoves.sort((a, b) => a.version_group_details[0].level_learned_at - b.version_group_details[0].level_learned_at);
+
+            if(levelMoves.length === 0) { list.innerHTML = '<div style="text-align:center;">Sem moves.</div>'; return; }
+
+            for (const m of levelMoves) {
+                const moveUrl = m.move.url;
+                const level = m.version_group_details[0].level_learned_at;
+                const card = document.createElement('div');
+                card.className = 'move-card';
+                card.style.background = "rgba(0,0,0,0.4)";
+                card.style.borderLeft = "4px solid #555";
+                card.style.padding = "8px";
+                card.style.marginBottom = "6px";
+                card.style.display = "flex";
+                card.style.justifyContent = "space-between";
+                card.innerHTML = `<div><div style="font-weight:bold;text-transform:capitalize;">${m.move.name.replace(/-/g, ' ')}</div><div style="font-size:0.7rem;color:#888;">Lvl ${level}</div></div><div id="move-data-${m.move.name}"><small>...</small></div>`;
+                list.appendChild(card);
+                fetch(moveUrl).then(r => r.json()).then(d => {
+                    document.getElementById(`move-data-${m.move.name}`).innerHTML = `<img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${d.type.name}.svg" style="width:20px;"> <span style="font-size:0.7rem;background:#222;padding:2px;">PP ${d.pp}</span>`;
+                    card.style.borderLeftColor = getTypeColor(d.type.name);
+                });
+            }
+        }
+
+        async function fetchEvoChain(url) {
+            const res = await fetch(url);
+            const data = await res.json();
+            const container = document.getElementById('evoChain');
+            container.innerHTML = ''; // Limpa para evitar duplicados
+            let currentStageNodes = [data.chain];
+            while (currentStageNodes.length > 0) {
+                const row = document.createElement('div');
+                row.className = 'evo-stage-row';
+                let nextStageNodes = [];
+                currentStageNodes.forEach(node => {
+                    const eId = node.species.url.split('/')[6];
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'evo-img-wrapper';
+                    wrapper.onclick = () => window.location.href = `/pokedex/${eId}/`;
+                    wrapper.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${eId}.png" class="evo-img" title="${node.species.name}">`;
+                    row.appendChild(wrapper);
+                    if (node.evolves_to.length > 0) nextStageNodes.push(...node.evolves_to);
+                });
+                container.appendChild(row);
+                if (nextStageNodes.length > 0) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'evo-arrow';
+                    arrow.innerHTML = '⬇';
+                    container.appendChild(arrow);
+                    currentStageNodes = nextStageNodes;
+                } else { break; }
+            }
+        }
+
+        function toggleShiny() {
+            isShiny = !isShiny;
+            const btn = document.getElementById('shinyToggleBtn');
+            const img = document.getElementById('mainImg');
+            const sound = document.getElementById('shinySound');
+            img.src = isShiny ? spriteShiny : spriteNormal;
+            if(isShiny) {
+                btn.classList.add('active');
+                img.classList.add('shiny-active'); 
+                document.getElementById('shinyBtnText').textContent = "Modo Shiny ON";
+                if(sound) sound.play().catch(()=>{});
+                createSparkles();
+            } else {
+                btn.classList.remove('active');
+                img.classList.remove('shiny-active');
+                document.getElementById('shinyBtnText').textContent = "Visualizar Shiny";
+            }
+        }
+
+        function createSparkles() {
+            const container = document.getElementById('sparkleContainer');
+            container.innerHTML = ''; 
+            for(let i=0; i<10; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.style.left = (50 + (Math.random() * 40 - 20)) + '%';
+                sparkle.style.top = (50 + (Math.random() * 40 - 20)) + '%';
+                sparkle.style.setProperty('--tx', (Math.random() * 200 - 100) + 'px');
+                sparkle.style.setProperty('--ty', (Math.random() * 200 - 100) + 'px');
+                container.appendChild(sparkle);
+            }
+            setTimeout(() => { container.innerHTML = ''; }, 1000);
+        }
+
+        function getTypeColor(type) {
+            const colors = { fire: '#EE8130', water: '#6390F0', grass: '#7AC74C', electric: '#F7D02C', psychic: '#F95587', ice: '#96D9D6', dragon: '#6F35FC', dark: '#705746', fairy: '#D685AD', normal: '#A8A77A', fighting: '#C22E28', flying: '#A98FF3', poison: '#A33EA1', ground: '#E2BF65', rock: '#B6A136', bug: '#A6B91A', ghost: '#735797', steel: '#B7B7CE' };
+            return colors[type] || '#ccc';
+        }
+    </script>
+{% endblock %}
