@@ -22,134 +22,214 @@
         <source src="{% static 'audio/pokemon_center.mp3' %}" type="audio/mpeg">
     </audio>
 
-    <button id="music-toggle" style="
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: rgba(13, 17, 23, 0.9);
-        border: 2px solid #D92525;
-        color: #D92525;
-        font-size: 24px;
-        z-index: 2147483647; /* Valor máximo possível no CSS */
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-    ">🔇</button>
+    <div id="music-player-container">
+            <div class="player-line"></div>
 
+            <button class="player-nav-btn" onclick="prevTrack()">❮</button>
+
+            <div id="poke-play-btn" class="player-pokeball-btn" title="Pausar/Tocar"></div>
+
+            <div class="player-info">
+                <div id="track-name" class="track-name">Carregando...</div>
+                <div id="track-time" class="track-time">--:--</div>
+            </div>
+
+            <button class="player-nav-btn" onclick="nextTrack()">❯</button>
+        </div>
+
+    <audio id="bg-music" loop></audio>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-   <script>
-        function initAudioSystem() {
-            var audio = document.getElementById("bg-music");
-            var btn = document.getElementById("music-toggle");
+<script>
+        // --- CONFIGURAÇÃO DA PLAYLIST ---
+        const playlist = [
+            { name: "Pallet Town", src: "{% static 'audio/Pallet_town.mp3' %}" },
+            { name: "Nuvema town", src: "{% static 'audio/Nuvema_town.mp3' %}" },
+            { name: "Aspertia City", src: "{% static 'audio/Aspertia_city.mp3' %}" },
+            { name: "TwinLeaf Town", src: "{% static 'audio/Twinleaf_town.mp3' %}" },
+            { name: "Littleroot Town", src: "{% static 'audio/Littleroot_town.mp3' %}" },
+            { name: "Wedgehurst", src: "{% static 'audio/Wedgehusrt.mp3' %}" },
+            { name: "PetalBurg City", src: "{% static 'audio/Petalburg_city.mp3' %}" },
+            { name: "Dewford town", src: "{% static 'audio/Dewford_town.mp3' %}" },
+            { name: "Fortree City", src: "{% static 'audio/Fortree_city.mp3' %}" },
+            { name: "CherryGrove City", src: "{% static 'audio/Cherrygrove City.mp3' %}" },
+            { name: "Vs.Rival (HGSS)", src: "{% static 'audio/Batalha_Rival.mp3' %}" },
+            { name: "Battle! (Super Ancient Pokémon)", src: "{% static 'audio/Battle!(Super-Ancient- Pokémon).mp3' %}" },
+            { name: "Pokémon Center", src: "{% static 'audio/pokemon_center.mp3' %}" },
+           //{ name: "xxx", src: "{% static 'audio/xxx.mp3' %}" },  Esse é o codigo para adicionar uma musica a playlist
             
-            audio.volume = 0.3;
+        ];
 
-            // --- 1. FUNÇÕES VISUAIS ---
-            function updateIcon() {
-                if (!audio.paused) {
-                    btn.innerHTML = "🔊";
-                    btn.style.boxShadow = "0 0 15px #64D7F4";
-                    btn.style.borderColor = "#64D7F4";
-                    btn.style.color = "#64D7F4";
-                } else {
-                    btn.innerHTML = "🔇";
-                    btn.style.boxShadow = "none";
-                    btn.style.borderColor = "#D92525";
-                    btn.style.color = "#D92525";
-                }
-            }
+        let currentTrackIndex = 0;
+        const audio = document.getElementById("bg-music");
+        const playBtn = document.getElementById("poke-play-btn");
+        const nameDisplay = document.getElementById("track-name");
+        const timeDisplay = document.getElementById("track-time");
+        const playerContainer = document.getElementById("music-player-container");
 
-            // --- 2. FUNÇÕES DE PLAY/PAUSE ---
-            function playAudio() {
-                var playPromise = audio.play();
-                if (playPromise !== undefined) {
-                    playPromise.then(_ => {
-                        localStorage.setItem('musicStatus', 'on');
-                        updateIcon();
-                    }).catch(error => {
-                        console.log("Autoplay bloqueado.");
-                        updateIcon(); 
-                        document.body.addEventListener('click', forcePlayOnFirstClick, { once: true });
-                    });
-                }
-            }
-
-            function pauseAudio() {
-                audio.pause();
-                localStorage.setItem('musicStatus', 'off');
-                updateIcon();
-            }
-
-            function forcePlayOnFirstClick() {
-                if(localStorage.getItem('musicStatus') === 'on') {
-                    playAudio();
-                }
-            }
-
-            // --- 3. NOVA LÓGICA: SINCRONIA DE TEMPO ---
+        // --- SISTEMA DE AUDIO ---
+        function loadTrack(index) {
+            // Garante índice válido (loop infinito da playlist)
+            if (index < 0) index = playlist.length - 1;
+            if (index >= playlist.length) index = 0;
             
-            // A) Salva o tempo atual a cada atualização (enquanto toca)
-            audio.addEventListener('timeupdate', function() {
-                // Salva apenas se o áudio estiver tocando para evitar salvar "0" ao carregar
-                if (!audio.paused) {
-                    localStorage.setItem('audioTime', audio.currentTime);
-                }
-            });
-
-            // B) Recupera o tempo salvo
-            var savedTime = localStorage.getItem('audioTime');
-            if (savedTime) {
-                // Recupera o float e aplica.
-                // Importante: A diferença precisa ser maior que 1 seg para evitar "pulos" estranhos no reload normal
-                if (Math.abs(audio.currentTime - savedTime) > 1) {
-                     audio.currentTime = parseFloat(savedTime);
-                }
-            }
-
-            // --- 4. AÇÃO DO BOTÃO ---
-            var newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-            btn = newBtn;
-
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (audio.paused) {
-                    playAudio();
-                } else {
-                    pauseAudio();
-                }
-            });
-
-            // --- 5. VERIFICAÇÃO INICIAL ---
-            var userWantsMusic = localStorage.getItem('musicStatus');
+            currentTrackIndex = index;
+            audio.src = playlist[index].src;
+            nameDisplay.textContent = playlist[index].name;
             
-            if (userWantsMusic === 'on') {
-                playAudio();
-            } else {
-                updateIcon();
+            // Salva a música atual
+            localStorage.setItem('currentTrackIndex', index);
+        }
+
+        function playAudio() {
+            var playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    localStorage.setItem('musicStatus', 'on');
+                    updateVisuals(true);
+                }).catch(e => {
+                    console.log("Autoplay bloqueado");
+                    updateVisuals(false);
+                });
             }
         }
 
-        // Roda sempre que a página aparece (inclusive no botão Voltar)
-        window.addEventListener('pageshow', function(event) {
-            initAudioSystem();
-        });
-        
-        // Salva o tempo uma última vez ao sair da página para garantir precisão
-        window.addEventListener('pagehide', function() {
-            var audio = document.getElementById("bg-music");
-            if(audio && !audio.paused) {
+        function pauseAudio() {
+            audio.pause();
+            localStorage.setItem('musicStatus', 'off');
+            updateVisuals(false);
+        }
+
+        function toggleAudio() {
+            if (audio.paused) playAudio();
+            else pauseAudio();
+        }
+
+        function nextTrack() {
+            loadTrack(currentTrackIndex + 1);
+            if(localStorage.getItem('musicStatus') === 'on') playAudio();
+        }
+
+        function prevTrack() {
+            loadTrack(currentTrackIndex - 1);
+            if(localStorage.getItem('musicStatus') === 'on') playAudio();
+        }
+
+        function updateVisuals(isPlaying) {
+            if (isPlaying) {
+                playBtn.classList.add('spinning'); // Gira a bola
+            } else {
+                playBtn.classList.remove('spinning'); // Para a bola
+            }
+        }
+
+        // --- TEMPO RESTANTE ---
+        audio.addEventListener('timeupdate', () => {
+            if (audio.duration) {
+                const remaining = audio.duration - audio.currentTime;
+                const minutes = Math.floor(remaining / 60);
+                const seconds = Math.floor(remaining % 60).toString().padStart(2, '0');
+                timeDisplay.textContent = `-${minutes}:${seconds}`;
+                
+                // Salva o tempo atual para persistência entre páginas
                 localStorage.setItem('audioTime', audio.currentTime);
             }
         });
 
+        // Toca a próxima automaticamente quando acaba
+        audio.addEventListener('ended', nextTrack);
+
+        // --- DRAG AND DROP (ARRASTAR) ---
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+
+        playerContainer.addEventListener('mousedown', (e) => {
+            // Não arrasta se clicar nos botões
+            if(e.target.tagName === 'BUTTON' || e.target.id === 'poke-play-btn') return;
+            
+            isDragging = true;
+            offset.x = e.clientX - playerContainer.getBoundingClientRect().left;
+            offset.y = e.clientY - playerContainer.getBoundingClientRect().top;
+            playerContainer.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            playerContainer.style.cursor = 'grab';
+            // Salva a posição
+            localStorage.setItem('playerPos', JSON.stringify({
+                top: playerContainer.style.top,
+                left: playerContainer.style.left,
+                bottom: playerContainer.style.bottom,
+                right: playerContainer.style.right
+            }));
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault();
+            
+            // Remove bottom/right fixos para permitir movimento livre
+            playerContainer.style.bottom = 'auto';
+            playerContainer.style.right = 'auto';
+            
+            playerContainer.style.left = (e.clientX - offset.x) + 'px';
+            playerContainer.style.top = (e.clientY - offset.y) + 'px';
+        });
+
+        // --- INICIALIZAÇÃO ---
+window.addEventListener('DOMContentLoaded', () => {
+            // 1. Recupera Posição e Verifica Limites
+            const savedPos = JSON.parse(localStorage.getItem('playerPos'));
+            
+            if(savedPos) {
+                // Converte para números para verificar
+                const top = parseInt(savedPos.top);
+                const left = parseInt(savedPos.left);
+                const winWidth = window.innerWidth;
+                const winHeight = window.innerHeight;
+
+                // Verificação de Segurança: O player está dentro da tela?
+                // Se top ou left forem negativos OU maiores que a tela, reseta.
+                if (top < 0 || left < 0 || top > (winHeight - 60) || left > (winWidth - 100)) {
+                    console.log("Player estava fora da tela. Posição resetada.");
+                    // Reseta para o padrão (CSS original)
+                    playerContainer.style.bottom = '20px';
+                    playerContainer.style.right = '20px';
+                    playerContainer.style.top = 'auto';
+                    playerContainer.style.left = 'auto';
+                    // Limpa a memória ruim
+                    localStorage.removeItem('playerPos'); 
+                } else {
+                    // Se estiver tudo ok, aplica a posição salva
+                    if(savedPos.top) playerContainer.style.top = savedPos.top;
+                    if(savedPos.left) playerContainer.style.left = savedPos.left;
+                    
+                    if(savedPos.top || savedPos.left) {
+                        playerContainer.style.bottom = 'auto';
+                        playerContainer.style.right = 'auto';
+                    }
+                }
+            }
+
+            // 2. Recupera Música e Status (Mantido igual)
+            const savedIndex = parseInt(localStorage.getItem('currentTrackIndex')) || 0;
+            loadTrack(savedIndex);
+
+            const savedTime = parseFloat(localStorage.getItem('audioTime')) || 0;
+            audio.currentTime = savedTime;
+
+            const status = localStorage.getItem('musicStatus');
+            
+            // Clique na bola
+            playBtn.addEventListener('click', toggleAudio);
+
+            if (status === 'on') {
+                playAudio(); 
+            } else {
+                updateVisuals(false);
+            }
+        });
     </script>
     {% block scripts %}{% endblock %}
 </body>

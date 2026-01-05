@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Laboratório de Criação{% endblock %}
+
+{% block content %}
+<div class="fixed-background"></div>
+<div class="pokeball-pattern"></div>
+
+<form method="POST" class="detail-container" id="createForm" onsubmit="return validateForm()">
+    {% csrf_token %}
+    {{ form.pokeapi_id }}
+    {{ form.item_id }}
+    {{ form.move_1 }}
+    {{ form.move_2 }}
+    {{ form.move_3 }}
+    {{ form.move_4 }}
+
+    {% if form.errors %}
+    <div style="grid-column: 1/-1; background: #D92525; padding: 15px; border-radius: 10px; text-align: center; font-weight: bold;">
+        ALERTA: Verifique os dados. ({{ form.errors|striptags }})
+    </div>
+    {% endif %}
+
+    <div class="left-col">
+        <div class="panel-box">
+            <div class="panel-header">Identidade</div>
+            
+            <div style="position: relative;">
+                <input type="text" 
+                       id="pokeSearch" 
+                       class="tech-input" 
+                       placeholder="BUSCAR POKÉMON..." 
+                       autocomplete="off"
+                       onkeyup="filterPokemon()" 
+                       style="text-transform:uppercase; width: 100%;">
+                
+                <div id="pokeList" class="item-list" style="display:none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; z-index: 1000; background: #1a1a1a; border: 1px solid #444; border-top: none;"></div>
+            </div>
+            
+            <img id="previewImg" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/0.png" class="preview-img" onerror="this.style.opacity=0">
+            
+            <h1 id="displayName" style="text-align: center; color: #fff; text-transform: capitalize; margin: 10px 0; font-family: 'Orbitron';">---</h1>
+            <div id="typesDisplay" style="display:flex; justify-content:center; gap:10px;"></div>
+
+            <label class="shiny-wrapper">
+                {{ form.shiny }} <span class="shiny-label">VERSÃO SHINY ✨</span>
+            </label>
+        </div>
+
+        <div class="panel-box">
+            <div class="panel-header">Detalhes</div>
+            <div style="margin-bottom: 20px;">
+                <label style="color:#aaa; font-size:0.9rem;">Apelido</label>
+                {{ form.apelido }}
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label style="color:#aaa; font-size:0.9rem;">Gênero</label>
+                    {{ form.genero }}
+                </div>
+                <div>
+                    <label style="color:#aaa; font-size:0.9rem;">Nature</label>
+                    {{ form.nature }}
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; position: relative;" class="item-container">
+                <label style="color:#aaa; font-size:0.9rem;">Item Segurado</label>
+                <input type="text" id="itemSearch" class="tech-input" placeholder="Buscar Item..." onkeyup="filterItems()" autocomplete="off">
+                
+                <div id="itemList" class="item-list" style="display:none; position: absolute; top: 100%; left: 0; width: 100%; max-height: 200px; overflow-y: auto; z-index: 1000; background: #1a1a1a; border: 1px solid #444; border-top: none;"></div>
+                
+                <small id="itemStatus" style="color:#64D7F4; margin-top:5px; display:block;"></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="right-col">
+        
+        <div class="panel-box">
+            <div class="panel-header">Moveset</div>
+            <div class="move-selector-grid">
+                <div class="active-slots">
+                    {% for i in "1234" %}
+                    <div class="move-slot" id="slot{{ i }}" onclick="selectSlot({{ i }})">
+                        <span id="moveName{{ i }}">Move {{ i }}</span>
+                        <small style="color:#666;">--</small>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div>
+                    <input type="text" id="moveFilter" class="tech-input" placeholder="FILTRAR GOLPES..." style="margin-bottom: 15px; padding: 10px; font-size: 0.9rem;" onkeyup="filterMoves()">
+                    <div class="move-pool" id="moveList">
+                        <div style="padding: 20px; text-align: center; color: #666; margin-top:50px;">Selecione um Pokémon primeiro</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-box">
+            <div class="panel-header">
+                Treinamento 
+                <span style="float: right; font-size: 1rem; color: #888;">EVs: <span id="evTotal" style="color:#64D7F4;">0</span>/508</span>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 60px 1fr 60px; color:#888; font-size:0.9rem; margin-bottom:15px; text-align:center;">
+                <span>STAT</span> <span>EV (0-252)</span> <span>VAL</span>
+            </div>
+
+            <div style="display:none;"> 
+                <input type="number" name="iv_hp" value="31"><input type="number" name="iv_atk" value="31"><input type="number" name="iv_def" value="31"><input type="number" name="iv_spa" value="31"><input type="number" name="iv_spd" value="31"><input type="number" name="iv_spe" value="31">
+            </div>
+
+            <div class="stats-row"><span class="stat-label">HP</span> <input type="range" min="0" max="252" value="0" oninput="updateEv(this, 'id_ev_hp', 'val_hp')"> <span id="val_hp" style="font-family:monospace; font-size:1.1rem;">0</span> <input type="hidden" name="ev_hp" id="id_ev_hp" value="0"></div>
+            <div class="stats-row"><span class="stat-label">ATK</span> <input type="range" min="0" max="252" value="0" oninput="updateEv(this, 'id_ev_atk', 'val_atk')"> <span id="val_atk" style="font-family:monospace; font-size:1.1rem;">0</span> <input type="hidden" name="ev_atk" id="id_ev_atk" value="0"></div>
+            <div class="stats-row"><span class="stat-label">DEF</span> <input type="range" min="0" max="252" value="0" oninput="updateEv(this, 'id_ev_def', 'val_def')"> <span id="val_def" style="font-family:monospace; font-size:1.1rem;">0</span> <input type="hidden" name="ev_def" id="id_ev_def" value="0"></div>
+            <div class="stats-row"><span class="stat-label">SPA</span> <input type="range" min="0" max="252" value="0" oninput="updateEv(this, 'id_ev_spa', 'val_spa')"> <span id="val_spa" style="font-family:monospace; font-size:1.1rem;">0</span> <input type="hidden" name="ev_spa" id="id_ev_spa" value="0"></div>
+            <div class="stats-row"><span class="stat-label">SPD</span> <input type="range" min="0" max="252" value="0" oninput="updateEv(this, 'id_ev_spd', 'val_spd')"> <span id="val_spd" style="font-family:monospace; font-size:1.1rem;">0</span> <input type="hidden" name="ev_spd" id="id_ev_spd" value="0"></div>
+            <div class="stats-row"><span class="stat-label">SPE</span> <input type="range" min="0" max="252" value="0" oninput="updateEv(this, 'id_ev_spe', 'val_spe')"> <span id="val_spe" style="font-family:monospace; font-size:1.1rem;">0</span> <input type="hidden" name="ev_spe" id="id_ev_spe" value="0"></div>
+        </div>
+
+        <button type="submit" class="btn-create">CRIAR POKÉMON</button>
+    </div>
+</form>
+
+<script>
+    // --- DADOS GLOBAIS ---
+    let allItems = []; 
+    let allPokemonNames = []; // Nova lista para busca
+    let currentSprites = {};
+    let activeSlot = 1;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Estilizar inputs Django
+        const ids = ['id_apelido', 'id_genero', 'id_nature'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.classList.add(el.tagName === 'SELECT' ? 'tech-select' : 'tech-input');
+        });
+        document.getElementById('id_shiny').addEventListener('change', updateSprite);
+        
+        // Carregar Itens e Nomes da API (Uma vez só)
+        fetchAllItems();
+        fetchAllPokemonNames();
+
+        // Fechar listas ao clicar fora
+        document.addEventListener('click', (e) => {
+            if(!e.target.closest('.item-container')) document.getElementById('itemList').style.display = 'none';
+            if(e.target.id !== 'pokeSearch') document.getElementById('pokeList').style.display = 'none';
+        });
+    });
+
+    // --- 1. BUSCA DE POKEMON (AUTOCOMPLETE) ---
+    async function fetchAllPokemonNames() {
+        const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1300');
+        const data = await res.json();
+        allPokemonNames = data.results;
+    }
+
+    function filterPokemon() {
+        const input = document.getElementById('pokeSearch');
+        const list = document.getElementById('pokeList');
+        const term = input.value.toLowerCase();
+
+        if(term.length < 2) { list.style.display = 'none'; return; }
+
+        list.innerHTML = '';
+        // Filtra 10 resultados
+        const filtered = allPokemonNames.filter(p => p.name.includes(term)).slice(0, 10);
+
+        if(filtered.length > 0) {
+            list.style.display = 'block';
+            filtered.forEach(pkmn => {
+                const div = document.createElement('div');
+                // Estilo inline para garantir visual sem CSS externo
+                div.style.cssText = "padding: 10px; cursor: pointer; border-bottom: 1px solid #333; color: #ccc; text-transform: uppercase;";
+                div.textContent = pkmn.name.replace(/-/g, ' ');
+                
+                div.onmouseover = function() { this.style.background = "#333"; this.style.color = "#fff"; };
+                div.onmouseout = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
+
+                div.onclick = async () => {
+                    input.value = pkmn.name;
+                    list.style.display = 'none';
+                    fetchPokemonData(); // Chama a busca real
+                };
+                list.appendChild(div);
+            });
+        } else {
+            list.style.display = 'none';
+        }
+    }
+
+    // --- BUSCA DE DADOS DETALHADA ---
+    async function fetchPokemonData() {
+        const name = document.getElementById('pokeSearch').value.toLowerCase().replace(' ', '-');
+        if(!name) return;
+
+        try {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
+            if(!res.ok) throw new Error();
+            const data = await res.json();
+
+            document.getElementById('id_pokeapi_id').value = data.id;
+            document.getElementById('displayName').textContent = data.name;
+            
+            currentSprites = data.sprites;
+            updateSprite(data.id);
+
+           document.getElementById('typesDisplay').innerHTML = data.types.map(t => {
+                const typeName = t.type.name;
+                // Cria a div com a classe de cor correta e o ícone SVG dentro
+                return `<div class="type-badge type-${typeName}" title="${typeName}">
+                            <img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${typeName}.svg" alt="${typeName}">
+                        </div>`;
+            }).join('');
+
+            handleGender(name);
+            loadMovePool(data.moves);
+
+        } catch(e) {
+            // document.getElementById('displayName').textContent = "Não encontrado";
+        }
+    }
+
+    function updateSprite(pokemonId) {
+        const isShiny = document.getElementById('id_shiny').checked;
+        const img = document.getElementById('previewImg');
+        const pid = document.getElementById('id_pokeapi_id').value;
+        
+        if(!pid) return;
+
+        const baseUrl = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/";
+        let finalUrl = isShiny ? baseUrl + "shiny/" + pid + ".gif" : baseUrl + pid + ".gif";
+        
+        img.src = finalUrl;
+        img.style.opacity = 1;
+        
+        img.onerror = function() {
+            this.src = isShiny 
+                ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${pid}.png`
+                : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pid}.png`;
+        };
+    }
+
+    async function handleGender(name) {
+        const genderSelect = document.getElementById('id_genero');
+        try {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${name}`);
+            const data = await res.json();
+            const rate = data.gender_rate;
+            
+            for(let opt of genderSelect.options) opt.disabled = false;
+
+            if (rate === -1) {
+                genderSelect.value = 'genderless';
+                for(let opt of genderSelect.options) {
+                    if(opt.value !== 'genderless') opt.disabled = true;
+                }
+            } else {
+                for(let opt of genderSelect.options) {
+                    if(opt.value === 'genderless') opt.disabled = true;
+                }
+                if(genderSelect.value === 'genderless') genderSelect.value = 'male';
+            }
+        } catch(e) { console.log("Erro ao buscar gênero"); }
+    }
+
+    // --- 2. LISTA DE ITENS (DROPDOWN) ---
+    async function fetchAllItems() {
+        const res = await fetch('https://pokeapi.co/api/v2/item?limit=1000');
+        const data = await res.json();
+        allItems = data.results;
+    }
+
+    function filterItems() {
+        const input = document.getElementById('itemSearch');
+        const list = document.getElementById('itemList');
+        const term = input.value.toLowerCase();
+        
+        if(term.length < 2) { list.style.display = 'none'; return; }
+        
+        list.innerHTML = '';
+        const filtered = allItems.filter(i => i.name.includes(term)).slice(0, 10);
+        
+        if(filtered.length > 0) {
+            list.style.display = 'block';
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                // Estilo inline para garantir
+                div.style.cssText = "padding: 10px; cursor: pointer; border-bottom: 1px solid #333; color: #ccc; text-transform: uppercase;";
+                div.textContent = item.name.replace(/-/g, ' ');
+                
+                div.onmouseover = function() { this.style.background = "#333"; this.style.color = "#fff"; };
+                div.onmouseout = function() { this.style.background = "transparent"; this.style.color = "#ccc"; };
+
+                div.onclick = async () => {
+                    input.value = item.name.replace(/-/g, ' ');
+                    list.style.display = 'none';
+                    const res = await fetch(item.url);
+                    const details = await res.json();
+                    document.getElementById('id_item_id').value = details.id;
+                    document.getElementById('itemStatus').textContent = "Item Equipado!";
+                };
+                list.appendChild(div);
+            });
+        } else {
+            list.style.display = 'none';
+        }
+    }
+
+    // --- 3. MOVES ---
+    function loadMovePool(moves) {
+        const container = document.getElementById('moveList');
+        container.innerHTML = '';
+        moves.sort((a,b) => a.move.name.localeCompare(b.move.name));
+
+        moves.forEach(m => {
+            const div = document.createElement('div');
+            // Usando classe do css antigo se existir, senao estilo inline
+            div.className = 'pool-item'; 
+            div.textContent = m.move.name.replace(/-/g, ' ');
+            div.onclick = async () => {
+                const res = await fetch(m.move.url);
+                const data = await res.json();
+                document.getElementById(`id_move_${activeSlot}`).value = data.id;
+                const display = document.getElementById(`slot${activeSlot}`);
+                display.innerHTML = `<span style="color:#fff;">${data.name}</span> <img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${data.type.name}.svg" width="20">`;
+                if(activeSlot < 4) selectSlot(activeSlot + 1);
+            };
+            container.appendChild(div);
+        });
+    }
+
+    function selectSlot(slot) {
+        activeSlot = slot;
+        for(let i=1; i<=4; i++) document.getElementById(`slot${i}`).classList.remove('selected');
+        document.getElementById(`slot${slot}`).classList.add('selected');
+    }
+
+    function filterMoves() {
+        const term = document.getElementById('moveFilter').value.toLowerCase();
+        document.querySelectorAll('.pool-item').forEach(el => {
+            el.style.display = el.textContent.includes(term) ? 'flex' : 'none';
+        });
+    }
+
+    function updateEv(slider, inputId, displayId) {
+        const val = parseInt(slider.value);
+        document.getElementById(inputId).value = val;
+        document.getElementById(displayId).textContent = val;
+        
+        let total = 0;
+        document.querySelectorAll('input[type="hidden"][name^="ev_"]').forEach(inp => total += parseInt(inp.value)||0);
+        
+        const totalDisplay = document.getElementById('evTotal');
+        totalDisplay.textContent = total;
+        totalDisplay.style.color = total > 508 ? '#ff4d4d' : '#64D7F4';
+    }
+
+    function validateForm() {
+        const id = document.getElementById('id_pokeapi_id').value;
+        if(!id) { alert("Selecione um Pokémon!"); return false; }
+        let total = 0;
+        document.querySelectorAll('input[type="hidden"][name^="ev_"]').forEach(inp => total += parseInt(inp.value)||0);
+        if(total > 508) { alert("Total de EVs não pode passar de 508!"); return false; }
+        return true;
+    }
+
+    selectSlot(1);
+</script>
+{% endblock %}

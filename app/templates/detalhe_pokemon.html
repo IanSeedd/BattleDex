@@ -22,7 +22,7 @@
         </a>
     </div>
 
-    <div class="detail-container">
+    <div class="pokedex-detail-wrapper">
         
         <div class="left-col">
             <div class="panel-box desc-box">
@@ -71,6 +71,7 @@
                 </div>
                 <img id="mainImg" src="" alt="Pokemon" class="main-image">
                 <div id="sparkleContainer" style="position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;"></div>
+                <img id="megaStoneImg" class="mega-stone-display" src="" alt="Mega Stone">
             </div>
         </div>
 
@@ -97,48 +98,133 @@
             </div>
         </div>
 
+
+<div class="tech-data-container">
+            
+            <div class="tech-panel stats-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom: 2px solid #D92525; padding-bottom: 5px;">
+                    <h3 style="border:none; margin:0;"><span class="icon">📊</span> Status</h3>
+                    <select id="natureSelector" onchange="updateStatsByNature()" class="rotom-select">
+                        <option value="hardy">Nature: Neutra (Hardy)</option>
+                        <option value="lonely">Lonely (+Atk, -Def)</option>
+                        <option value="brave">Brave (+Atk, -Spe)</option>
+                        <option value="adamant">Adamant (+Atk, -SpA)</option>
+                        <option value="naughty">Naughty (+Atk, -SpD)</option>
+                        <option value="bold">Bold (+Def, -Atk)</option>
+                        <option value="impish">Impish (+Def, -SpA)</option>
+                        <option value="lax">Lax (+Def, -SpD)</option>
+                        <option value="relaxed">Relaxed (+Def, -Spe)</option>
+                        <option value="modest">Modest (+SpA, -Atk)</option>
+                        <option value="mild">Mild (+SpA, -Def)</option>
+                        <option value="rash">Rash (+SpA, -SpD)</option>
+                        <option value="quiet">Quiet (+SpA, -Spe)</option>
+                        <option value="calm">Calm (+SpD, -Atk)</option>
+                        <option value="gentle">Gentle (+SpD, -Def)</option>
+                        <option value="careful">Careful (+SpD, -SpA)</option>
+                        <option value="sassy">Sassy (+SpD, -Spe)</option>
+                        <option value="timid">Timid (+Spe, -Atk)</option>
+                        <option value="hasty">Hasty (+Spe, -Def)</option>
+                        <option value="jolly">Jolly (+Spe, -SpA)</option>
+                        <option value="naive">Naive (+Spe, -SpD)</option>
+                    </select>
+                </div>
+                <div id="baseStatsList" class="stats-list">
+                    </div>
+            </div>
+
+            <div class="tech-panel info-panel">
+                
+                <div class="sub-section">
+                    <h3><span class="icon"></span> Habilidades <small style="font-size:0.7em; color:#888;">(Clique para ver)</small></h3>
+                    <div id="abilitiesList" class="chips-container"></div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="sub-section">
+                    <h3><span class="icon"></span> Criação</h3>
+                    <div class="data-row">
+                        <span class="label">Grupos:</span>
+                        <span id="eggGroupsData" class="value">...</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="label">Gênero:</span>
+                        <span id="genderRateData" class="value">...</span>
+                    </div>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="sub-section">
+                    <h3><span class="icon"></span> Fraquezas/Defesas</h3>
+                    <div id="weaknessContainer" class="weakness-grid">
+                        <span style="color:#888; font-size:0.8rem;">Calculando defesas...</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="abilityModal" class="ability-modal-overlay" onclick="closeAbilityModal()">
+            <div class="ability-modal-content" onclick="event.stopPropagation()">
+                <h3 id="modalAbilityName">Nome da Habilidade</h3>
+                <p id="modalAbilityDesc">Descrição vai aqui...</p>
+                <button class="close-modal-btn" onclick="closeAbilityModal()">Fechar</button>
+            </div>
+        </div>
+
         <div class="bottom-section" id="varietiesSection" style="display:none;">
             <h3>Formas Alternativas & Mega Evoluções</h3>
             <div id="varietiesContainer" class="varieties-container"></div>
         </div>
     </div>
 
-    <script>
+
+<script>
         const POKEMON_ID = {{ pokemon_id }};
         let isShiny = false;
         let spriteNormal = '';
         let spriteShiny = '';
+        
+        // Armazena os status originais para calcular natures
+        let baseStatsData = {}; 
+        // Armazena os tipos para calcular fraquezas
+        let currentPokemonTypes = [];
 
         document.addEventListener('DOMContentLoaded', () => {
             fetchPokemonData(POKEMON_ID);
         });
 
+        // --- FETCH PRINCIPAL ---
         async function fetchPokemonData(id) {
             try {
                 const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
                 if (!res.ok) throw new Error('Pokemon not found');
                 const data = await res.json();
 
-                // 1. TOCA O CRY (SOM)
+                // 1. AUDIO
                 if (data.cries && data.cries.latest) {
                     let audio = new Audio(data.cries.latest);
                     audio.volume = 0.3;
-                    audio.play().catch(e => console.log('Autoplay bloqueado pelo navegador'));
+                    audio.play().catch(e => {});
                 }
 
-                // 2. NOME E EFEITO
+                // 2. HEADER
                 const nameEl = document.getElementById('pkmnName');
-                nameEl.textContent = data.name.replace(/-/g, ' ');
-                if (data.name.includes('-mega')) {
+                nameEl.textContent = formatPokemonName(data.name, data.species.name);
+                
+                if (data.name.includes('-mega') || data.name.includes('primal')) {
                     nameEl.classList.add('mega-text-effect');
+                    findAndShowMegaStone(data.name);
                 } else {
                     nameEl.classList.remove('mega-text-effect');
+                    document.getElementById('megaStoneImg').style.display = 'none';
                 }
 
                 document.getElementById('pkmnHeight').textContent = (data.height / 10).toFixed(1) + ' m';
                 document.getElementById('pkmnWeight').textContent = (data.weight / 10).toFixed(1) + ' kg';
 
-                // 3. IMAGENS (Força 2D)
+                // 3. IMAGENS
                 const animGif = data.sprites.versions['generation-v']['black-white'].animated.front_default;
                 const animShiny = data.sprites.versions['generation-v']['black-white'].animated.front_shiny;
                 const staticImg = data.sprites.front_default;
@@ -146,24 +232,55 @@
 
                 spriteNormal = animGif || staticImg;
                 spriteShiny = animShiny || staticShinyImg;
-                
-                const imgEl = document.getElementById('mainImg');
-                imgEl.src = spriteNormal;
+                document.getElementById('mainImg').src = spriteNormal;
 
-                // 4. TIPOS
+                // 4. TIPOS E FRAQUEZAS
                 const typesContainer = document.getElementById('typesContainer');
                 typesContainer.innerHTML = '';
+                currentPokemonTypes = []; // Reseta
+                
                 data.types.forEach(t => {
+                    currentPokemonTypes.push(t.type.name);
                     const div = document.createElement('div');
                     div.className = `type-badge bg-type-${t.type.name}`;
                     div.title = t.type.name;
                     div.innerHTML = `<img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${t.type.name}.svg" class="type-icon">`;
                     typesContainer.appendChild(div);
                 });
+                
+                // Calcula as fraquezas
+                calculateWeaknesses(currentPokemonTypes);
 
+                // 5. MOVES
                 loadMoves(data.moves);
 
-                // 5. BUSCA A ESPÉCIE (Importante para evitar o bug do Mega ID)
+                // 6. STATUS E NATURES
+                // Salva os dados brutos
+                baseStatsData = {
+                    hp: data.stats[0].base_stat,
+                    attack: data.stats[1].base_stat,
+                    defense: data.stats[2].base_stat,
+                    'special-attack': data.stats[3].base_stat,
+                    'special-defense': data.stats[4].base_stat,
+                    speed: data.stats[5].base_stat
+                };
+                updateStatsByNature(); // Desenha a primeira vez (Neutra)
+
+                // 7. HABILIDADES CLICÁVEIS
+                const abilitiesContainer = document.getElementById('abilitiesList');
+                if(abilitiesContainer) {
+                    abilitiesContainer.innerHTML = '';
+                    data.abilities.forEach(a => {
+                        const span = document.createElement('span');
+                        span.className = `ability-chip ${a.is_hidden ? 'ability-hidden' : ''}`;
+                        span.textContent = a.ability.name.replace(/-/g, ' ');
+                        // Adiciona evento de clique para abrir modal
+                        span.onclick = () => showAbilityDetails(a.ability.url);
+                        abilitiesContainer.appendChild(span);
+                    });
+                }
+
+                // 8. DADOS DA ESPÉCIE
                 if (data.species && data.species.url) {
                     fetchSpeciesData(data.species.url);
                 }
@@ -171,71 +288,291 @@
             } catch (e) { console.error(e); }
         }
 
+        // --- SISTEMA DE NATURES ---
+        function updateStatsByNature() {
+            const nature = document.getElementById('natureSelector').value;
+            const container = document.getElementById('baseStatsList');
+            container.innerHTML = '';
+
+            // Mapa de efeitos das natures
+            const natureEffects = {
+                hardy: {}, docile: {}, serious: {}, bashful: {}, quirky: {},
+                lonely: {up: 'attack', down: 'defense'},
+                brave: {up: 'attack', down: 'speed'},
+                adamant: {up: 'attack', down: 'special-attack'},
+                naughty: {up: 'attack', down: 'special-defense'},
+                bold: {up: 'defense', down: 'attack'},
+                impish: {up: 'defense', down: 'special-attack'},
+                lax: {up: 'defense', down: 'special-defense'},
+                relaxed: {up: 'defense', down: 'speed'},
+                modest: {up: 'special-attack', down: 'attack'},
+                mild: {up: 'special-attack', down: 'defense'},
+                rash: {up: 'special-attack', down: 'special-defense'},
+                quiet: {up: 'special-attack', down: 'speed'},
+                calm: {up: 'special-defense', down: 'attack'},
+                gentle: {up: 'special-defense', down: 'defense'},
+                careful: {up: 'special-defense', down: 'special-attack'},
+                sassy: {up: 'special-defense', down: 'speed'},
+                timid: {up: 'speed', down: 'attack'},
+                hasty: {up: 'speed', down: 'defense'},
+                jolly: {up: 'speed', down: 'special-attack'},
+                naive: {up: 'speed', down: 'special-defense'}
+            };
+
+            const effect = natureEffects[nature];
+            
+            // Ordem de exibição
+            const statOrder = [
+                {key: 'hp', label: 'HP', class: 'bar-hp'},
+                {key: 'attack', label: 'ATK', class: 'bar-atk'},
+                {key: 'defense', label: 'DEF', class: 'bar-def'},
+                {key: 'special-attack', label: 'SPA', class: 'bar-spa'},
+                {key: 'special-defense', label: 'SPD', class: 'bar-spd'},
+                {key: 'speed', label: 'SPE', class: 'bar-spe'}
+            ];
+
+            statOrder.forEach(stat => {
+                let val = baseStatsData[stat.key];
+                let cssClass = '';
+                let symbol = '';
+
+                // HP nunca é afetado por nature
+                if (stat.key !== 'hp') {
+                    if (effect.up === stat.key) {
+                        val = Math.floor(val * 1.1); // +10%
+                        cssClass = 'boosted';
+                        symbol = '▲';
+                    } else if (effect.down === stat.key) {
+                        val = Math.floor(val * 0.9); // -10%
+                        cssClass = 'nerfed';
+                        symbol = '▼';
+                    }
+                }
+
+                // Barra visual (Max 255)
+                const percent = Math.min((val / 255) * 100, 100);
+
+                const div = document.createElement('div');
+                div.className = 'stat-row';
+                div.innerHTML = `
+                    <span class="stat-label">${stat.label}</span>
+                    <span class="stat-val-text ${cssClass}">${val}${symbol}</span>
+                    <div class="stat-bar-bg">
+                        <div class="stat-bar-fill ${stat.class}" style="width: ${percent}%"></div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- SISTEMA DE MODAL DE HABILIDADE ---
+        async function showAbilityDetails(url) {
+            const modal = document.getElementById('abilityModal');
+            const title = document.getElementById('modalAbilityName');
+            const desc = document.getElementById('modalAbilityDesc');
+            
+            title.textContent = "Carregando...";
+            desc.textContent = "...";
+            modal.style.display = 'flex';
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                title.textContent = data.name.replace(/-/g, ' ').toUpperCase();
+                
+                // Tenta pegar descrição em inglês (flavor text)
+                const entry = data.flavor_text_entries.find(e => e.language.name === 'en');
+                desc.textContent = entry ? entry.flavor_text : "Sem descrição disponível.";
+            } catch(e) {
+                desc.textContent = "Erro ao carregar detalhes.";
+            }
+        }
+
+        function closeAbilityModal() {
+            document.getElementById('abilityModal').style.display = 'none';
+        }
+
+        // --- CALCULADORA DE FRAQUEZAS ---
+        async function calculateWeaknesses(types) {
+            const container = document.getElementById('weaknessContainer');
+            container.innerHTML = '<span style="color:#888; font-size:0.8rem;">Analisando...</span>';
+
+            // Mapa inicial (Tudo neutro 1x)
+            let typeChart = {
+                normal: 1, fire: 1, water: 1, electric: 1, grass: 1, ice: 1,
+                fighting: 1, poison: 1, ground: 1, flying: 1, psychic: 1, bug: 1,
+                rock: 1, ghost: 1, dragon: 1, steel: 1, dark: 1, fairy: 1
+            };
+
+            try {
+                // Busca dados de cada tipo do pokemon na API
+                for (const typeName of types) {
+                    const res = await fetch(`https://pokeapi.co/api/v2/type/${typeName}`);
+                    const data = await res.json();
+                    
+                    // Aplica Multiplicadores
+                    data.damage_relations.double_damage_from.forEach(t => typeChart[t.name] *= 2);
+                    data.damage_relations.half_damage_from.forEach(t => typeChart[t.name] *= 0.5);
+                    data.damage_relations.no_damage_from.forEach(t => typeChart[t.name] *= 0);
+                }
+
+                container.innerHTML = '';
+                let hasData = false;
+
+                // Ordena: Fraquezas (4x, 2x) -> Resistências (0.5x, 0.25x) -> Imunidades (0x)
+                // Removemos o neutro (1x)
+                const sortedTypes = Object.entries(typeChart)
+                    .filter(([_, val]) => val !== 1) 
+                    .sort((a, b) => b[1] - a[1]); // Ordena do maior dano para o menor
+
+                for (const [type, multiplier] of sortedTypes) {
+                    hasData = true;
+                    const badge = document.createElement('div');
+                    
+                    let className = 'weak-badge';
+                    let text = multiplier + 'x';
+                    
+                    if (multiplier === 4) { className += ' weak-4x'; }
+                    else if (multiplier === 2) { className += ' weak-2x'; }
+                    else if (multiplier === 0.5) { className += ' resist-05'; }
+                    else if (multiplier === 0.25) { className += ' resist-025'; }
+                    else if (multiplier === 0) { className += ' immune'; text = '0x'; }
+
+                    badge.className = className;
+                    badge.innerHTML = `
+                        <img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${type}.svg" style="width:15px">
+                        ${text}
+                    `;
+                    badge.title = `${type}: ${text} de dano`;
+                    container.appendChild(badge);
+                }
+                
+                if (!hasData) container.innerHTML = '<span style="color:#888;">Dano neutro (1x) de tudo.</span>';
+
+            } catch (e) {
+                console.error("Erro calc fraqueza", e);
+                container.innerHTML = "Erro ao calcular.";
+            }
+        }
+
+        // --- FUNÇÕES DE ESPÉCIE (DESCRIÇÃO E VARIANTES) ---
         async function fetchSpeciesData(url) {
             try {
                 const res = await fetch(url);
                 if(!res.ok) return;
                 const data = await res.json();
 
-                // Descrição
-                const entry = data.flavor_text_entries.find(e => e.language.name === 'en');
+                let entry = data.flavor_text_entries.find(e => e.language.name === 'pt-br' || e.language.name === 'pt');
+                if (!entry) entry = data.flavor_text_entries.find(e => e.language.name === 'en');
                 if(entry) document.getElementById('flavorText').textContent = entry.flavor_text.replace(/[\f\n\r]/g, ' ');
 
-                // Cadeia
                 fetchEvoChain(data.evolution_chain.url);
 
-                // --- BOTÃO VOLTAR AO ORIGINAL ---
-                // Se o ID da página não for o ID da espécie, mostra o botão de voltar
                 if (POKEMON_ID != data.id) {
                     const backBtn = document.getElementById('backToOriginalBtn');
                     backBtn.style.display = 'flex';
                     backBtn.onclick = () => window.location.href = `/pokedex/${data.id}/`;
                 }
 
-                // --- VARIANTES NO RODAPÉ (Navegação Correta) ---
-                if (data.varieties.length > 1) {
+                // Dados de Criação
+                if (data.egg_groups) {
+                    document.getElementById('eggGroupsData').textContent = data.egg_groups.map(g => g.name).join(', ');
+                }
+                const genderEl = document.getElementById('genderRateData');
+                if(genderEl) {
+                    const rate = data.gender_rate;
+                    if (rate === -1) {
+                        genderEl.textContent = "Sem Gênero";
+                        genderEl.style.color = "#aaa";
+                    } else {
+                        const femaleChance = (rate / 8) * 100;
+                        const maleChance = 100 - femaleChance;
+                        genderEl.innerHTML = `<span style="color:#6390F0">${maleChance}% ♂</span> / <span style="color:#ee99ac">${femaleChance}% ♀</span>`;
+                    }
+                }
+
+                // Variantes (Django Context)
+                const filteredVarieties = [
+                    {% for v in varieties %}
+                        { id: "{{ v.id }}", name: "{{ v.name }}" }{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ];
+
+                if (filteredVarieties.length > 1) {
                     document.getElementById('varietiesSection').style.display = 'block';
                     const vContainer = document.getElementById('varietiesContainer');
-                    
-                    data.varieties.forEach(v => {
-                        const vId = v.pokemon.url.split('/')[6];
-                        if(vId == POKEMON_ID) return; // Não mostra a si mesmo
-
+                    vContainer.innerHTML = ''; 
+                    filteredVarieties.forEach(v => {
+                        if(v.id == POKEMON_ID) return;
                         const div = document.createElement('div');
                         div.className = 'variety-card';
-                        
-                        let cleanName = v.pokemon.name.replace(data.name, '').replace(/-/g, ' ').trim();
-                        if(cleanName === '') cleanName = 'Original';
-
-                        div.innerHTML = `
-                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${vId}.png" class="variety-img">
-                            <span class="variety-name">${cleanName}</span>
-                        `;
-                        
-                        // CLIQUE INTELIGENTE
+                        const displayName = formatPokemonName(v.name, data.name);
+                        div.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${v.id}.png" class="variety-img"><span class="variety-name">${displayName}</span>`;
                         div.onclick = () => {
-                            if (v.pokemon.name.includes('-mega')) {
-                                triggerMegaAnimationAndGo(vId);
-                            } else {
-                                window.location.href = `/pokedex/${vId}/`;
-                            }
+                            if (v.name.includes('-mega')) triggerMegaAnimationAndGo(v.id);
+                            else window.location.href = `/pokedex/${v.id}/`;
                         };
                         vContainer.appendChild(div);
                     });
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Erro species", e); }
         }
 
+        // --- UTILITÁRIOS ---
+        async function findAndShowMegaStone(pokemonName) {
+            try {
+                const stoneImg = document.getElementById('megaStoneImg');
+                stoneImg.style.display = 'none';
+                let baseName = pokemonName.split('-')[0]; 
+                const exceptions = {
+                    'mewtwo': 'mewtwonite', 'abomasnow': 'abomasite', 'alakazam': 'alakazite',
+                    'ampharos': 'ampharosite', 'banette': 'banettite', 'blastoise': 'blastoisinite',
+                    'gardevoir': 'gardevoirite', 'gyarados': 'gyaradosite', 'heracross': 'heracronite',
+                    'houndoom': 'houndoominite', 'kangaskhan': 'kangaskhanite', 'manectric': 'manectite',
+                    'mawile': 'mawilite', 'medicham': 'medichamite', 'pinsir': 'pinsirite',
+                    'sableye': 'sablenite', 'sharpedo': 'sharpedonite', 'slowbro': 'slowbronite',
+                    'venusaur': 'venusaurite'
+                };
+                let stoneName = exceptions[baseName] || (baseName + 'ite');
+                if (pokemonName.includes('-x')) stoneName += '-x';
+                if (pokemonName.includes('-y')) stoneName += '-y';
+                if (baseName === 'kyogre') stoneName = 'blue-orb';
+                if (baseName === 'groudon') stoneName = 'red-orb';
+                if (baseName === 'rayquaza') return;
+
+                const res = await fetch(`https://pokeapi.co/api/v2/item/${stoneName}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    stoneImg.src = data.sprites.default;
+                    stoneImg.style.display = 'block'; 
+                }
+            } catch (e) {}
+        }
+
+        function formatPokemonName(name, speciesName) {
+            let formName = name.replace(speciesName, '').replace(/-/g, ' ').trim();
+            if (!formName || formName === 'disguised' || formName === 'normal' || formName === 'default') 
+                return speciesName.charAt(0).toUpperCase() + speciesName.slice(1);
+            let formattedSpecies = speciesName.charAt(0).toUpperCase() + speciesName.slice(1);
+            let words = formName.split(' ');
+            let capitalizedWords = words.map(w => w.charAt(0).toUpperCase() + w.slice(1));
+            const prefixes = ['Mega', 'Gmax', 'Alola', 'Galar', 'Hisui', 'Paldea'];
+            let prefixIndex = capitalizedWords.findIndex(w => prefixes.includes(w));
+            if (prefixIndex !== -1) {
+                let prefix = capitalizedWords[prefixIndex];
+                capitalizedWords.splice(prefixIndex, 1);
+                return `${prefix}-${formattedSpecies} ${capitalizedWords.join(' ')}`;
+            }
+            return `${formattedSpecies} ${capitalizedWords.join(' ')}`;
+        }
+        
         function triggerMegaAnimationAndGo(targetId) {
             const overlay = document.getElementById('megaIntroOverlay');
             const sound = document.getElementById('megaSound');
-            
             overlay.classList.add('active');
             if(sound) { sound.volume = 0.4; sound.currentTime = 0; sound.play().catch(()=>{}); }
-            
-            setTimeout(() => { 
-                window.location.href = `/pokedex/${targetId}/`; 
-            }, 2200);
+            setTimeout(() => { window.location.href = `/pokedex/${targetId}/`; }, 2200);
         }
 
         async function loadMoves(moves) {
@@ -243,9 +580,7 @@
             list.innerHTML = '';
             const levelMoves = moves.filter(m => m.version_group_details[0].move_learn_method.name === 'level-up');
             levelMoves.sort((a, b) => a.version_group_details[0].level_learned_at - b.version_group_details[0].level_learned_at);
-
             if(levelMoves.length === 0) { list.innerHTML = '<div style="text-align:center;">Sem moves.</div>'; return; }
-
             for (const m of levelMoves) {
                 const moveUrl = m.move.url;
                 const level = m.version_group_details[0].level_learned_at;
@@ -257,7 +592,7 @@
                 card.style.marginBottom = "6px";
                 card.style.display = "flex";
                 card.style.justifyContent = "space-between";
-                card.innerHTML = `<div><div style="font-weight:bold;text-transform:capitalize;">${m.move.name}</div><div style="font-size:0.7rem;color:#888;">Lvl ${level}</div></div><div id="move-data-${m.move.name}"><small>...</small></div>`;
+                card.innerHTML = `<div><div style="font-weight:bold;text-transform:capitalize;">${m.move.name.replace(/-/g, ' ')}</div><div style="font-size:0.7rem;color:#888;">Lvl ${level}</div></div><div id="move-data-${m.move.name}"><small>...</small></div>`;
                 list.appendChild(card);
                 fetch(moveUrl).then(r => r.json()).then(d => {
                     document.getElementById(`move-data-${m.move.name}`).innerHTML = `<img src="https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${d.type.name}.svg" style="width:20px;"> <span style="font-size:0.7rem;background:#222;padding:2px;">PP ${d.pp}</span>`;
@@ -270,6 +605,7 @@
             const res = await fetch(url);
             const data = await res.json();
             const container = document.getElementById('evoChain');
+            container.innerHTML = ''; 
             let currentStageNodes = [data.chain];
             while (currentStageNodes.length > 0) {
                 const row = document.createElement('div');

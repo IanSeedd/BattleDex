@@ -1,0 +1,254 @@
+{% extends 'base.html' %} 
+
+{% load static %}
+
+{% block title %}Sistema de Armazenamento Pokémon{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<div class="fixed-bg"></div>
+<div class="scanlines"></div>
+<div class="pokeball-pattern"></div>
+
+<div class="walker-track-wrapper">
+    <div id="walkerContainer"></div>
+</div>
+
+<div class="pc-layout">
+    <div class="sidebar">
+        <div class="sidebar-header">Equipe Atual</div>
+        <div class="team-grid">
+            {% for pokemon in team_slots_list %}
+                <div class="team-slot" 
+                     ondrop="drop(event, {{ forloop.counter }})" 
+                     ondragover="allowDrop(event)">
+                    <span class="slot-number">{{ forloop.counter }}</span>
+                    {% if pokemon %}
+                        <div class="pkmn-card" 
+                             draggable="true" 
+                             ondragstart="drag(event, {{ pokemon.id }})"
+                             onclick="openStats({
+                                name: '{{ pokemon.apelido|default:pokemon.pokeapi_id }}',
+                                apiId: {{ pokemon.pokeapi_id }},
+                                shiny: {{ pokemon.shiny|yesno:'true,false' }},
+                                level: {{ pokemon.level }},
+                                nature: '{{ pokemon.nature }}',
+                                gender: '{{ pokemon.genero }}',
+                                itemId: {{ pokemon.item_id|default:'null' }},
+                                evs: [{{ pokemon.ev_hp }}, {{ pokemon.ev_atk }}, {{ pokemon.ev_def }}, {{ pokemon.ev_spa }}, {{ pokemon.ev_spd }}, {{ pokemon.ev_spe }}],
+                                moves: [{{ pokemon.move_1|default:'null' }}, {{ pokemon.move_2|default:'null' }}, {{ pokemon.move_3|default:'null' }}, {{ pokemon.move_4|default:'null' }}]
+                             })">
+                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/{{ pokemon.pokeapi_id }}.png" 
+                                 class="pkmn-sprite"
+                                 onerror="fixImage(this, {{ pokemon.pokeapi_id }})">
+                            {% if pokemon.shiny %}<span class="shiny-icon">✨</span>{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+        <div class="sidebar-controls">
+            <button class="tech-btn">Selecionar Time</button>
+            <a href="{% url 'criar_pokemon' %}" class="tech-btn secondary">Criar Pokémon</a>
+        </div>
+    </div>
+
+    <div class="box-wrapper">
+        <div class="box-controls-header">
+            <button class="nav-btn">❮</button>
+            <span class="box-title">BOX 1: PRINCIPAL</span>
+            <button class="nav-btn">❯</button>
+        </div>
+        <div class="box-storage" ondrop="dropToBox(event)" ondragover="allowDrop(event)">
+            {% for pkmn in pokemons_box %}
+                <div class="pkmn-card" 
+                     draggable="true" 
+                     ondragstart="drag(event, {{ pkmn.id }})"
+                     onclick="openStats({
+                        name: '{{ pkmn.apelido|default:pkmn.pokeapi_id }}',
+                        apiId: {{ pkmn.pokeapi_id }},
+                        shiny: {{ pkmn.shiny|yesno:'true,false' }},
+                        level: {{ pkmn.level }},
+                        nature: '{{ pkmn.nature }}',
+                        gender: '{{ pkmn.genero }}',
+                        itemId: {{ pkmn.item_id|default:'null' }},
+                        evs: [{{ pkmn.ev_hp }}, {{ pkmn.ev_atk }}, {{ pkmn.ev_def }}, {{ pkmn.ev_spa }}, {{ pkmn.ev_spd }}, {{ pkmn.ev_spe }}],
+                        moves: [{{ pkmn.move_1|default:'null' }}, {{ pkmn.move_2|default:'null' }}, {{ pkmn.move_3|default:'null' }}, {{ pkmn.move_4|default:'null' }}]
+                     })">
+                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/{{ pkmn.pokeapi_id }}.png" 
+                         class="pkmn-sprite"
+                         onerror="fixImage(this, {{ pkmn.pokeapi_id }})">
+                    {% if pkmn.shiny %}<span class="shiny-icon">✨</span>{% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div id="detailModal" class="modal-overlay" onclick="closeModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+
+        <div class="modal-col-left">
+            <img id="modalImg" src="" class="modal-pkmn-img">
+            <h2 id="modalName" class="modal-name">---</h2>
+            <div class="modal-chips">
+                <span id="modalLvl" class="modal-chip">Lv. 100</span>
+                <span id="modalNature" class="modal-chip">Hardy</span>
+                <span id="modalGender" class="modal-chip">---</span>
+                <span id="modalShiny" class="modal-chip chip-shiny" style="display:none;">Shiny ✨</span>
+            </div>
+            <div style="margin-top: 20px; width: 100%; text-align: center;">
+                <small style="color:#888; display:block; margin-bottom:5px;">ITEM SEGURADO</small>
+                <div id="modalItem" style="color:#fff; font-weight:bold; text-transform:capitalize;">Nenhum</div>
+            </div>
+        </div>
+
+        <div class="modal-col-right">
+            <div class="chart-container">
+                <canvas id="statsChart"></canvas>
+            </div>
+            
+            <div>
+                <h4 style="color:#D92525; font-family:'Orbitron'; margin-bottom:10px;">MOVESET</h4>
+                <div class="modal-moves-grid">
+                    <div id="move1" class="modal-move"><span class="move-name">---</span></div>
+                    <div id="move2" class="modal-move"><span class="move-name">---</span></div>
+                    <div id="move3" class="modal-move"><span class="move-name">---</span></div>
+                    <div id="move4" class="modal-move"><span class="move-name">---</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. IMAGEM CORREÇÃO ---
+function fixImage(imgElement, apiId) {
+        // Se o GIF animado falhar (ex: Gen 6+), tenta o sprite estático
+        imgElement.onerror = function() {
+            this.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${apiId}.png`;
+        };
+        // Tenta carregar o GIF animado da Gen 5 (O estilo que você quer)
+        imgElement.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/${apiId}.gif`;
+    }
+
+    // --- 2. WALKERS ---
+    let walkerInterval = null; 
+    function spawnWalker() {
+        if (document.hidden) return;
+        const container = document.getElementById('walkerContainer');
+        const img = document.createElement('img');
+        const randomId = Math.floor(Math.random() * 898) + 1;
+        img.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-viii/icons/${randomId}.png`;
+        img.onerror = function() { this.src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${randomId}.png`; }
+        img.className = 'walking-pokemon';
+        img.addEventListener('animationend', () => img.remove());
+        container.appendChild(img);
+    }
+    function startSpawning() { if (!walkerInterval) { spawnWalker(); walkerInterval = setInterval(spawnWalker, 1500); } }
+    function stopSpawning() { clearInterval(walkerInterval); walkerInterval = null; }
+    document.addEventListener("visibilitychange", () => { if (document.hidden) stopSpawning(); else startSpawning(); });
+    startSpawning();
+
+    // --- 3. DRAG AND DROP ---
+    function allowDrop(ev) { ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); }
+    document.querySelectorAll('.team-slot, .box-storage').forEach(el => { el.addEventListener('dragleave', () => el.classList.remove('drag-over')); });
+    function drag(ev, pkmnId) { ev.dataTransfer.setData("text/plain", pkmnId); }
+    function drop(ev, slot) { ev.preventDefault(); ev.currentTarget.classList.remove('drag-over'); const pkmnId = ev.dataTransfer.getData("text/plain"); if (pkmnId) updateTeam(pkmnId, slot); }
+    function dropToBox(ev) { ev.preventDefault(); ev.currentTarget.classList.remove('drag-over'); const pkmnId = ev.dataTransfer.getData("text/plain"); if (pkmnId) updateTeam(pkmnId, null); }
+
+    function updateTeam(pkmnId, slot) {
+        const timeId = "{{ time.id }}"; document.body.style.cursor = 'wait';
+        fetch("{% url 'update_team' %}", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ pokemon_id: pkmnId, slot: slot, time_id: timeId })
+        }).then(r => r.json()).then(d => {
+            if(d.status === 'success') location.reload(); else alert("Erro: " + d.message);
+        }).catch(err => console.error(err));
+    }
+
+    // --- 4. MODAL VERMELHO + BORDAS COLORIDAS ---
+let myRadarChart = null;
+
+    async function openStats(data) {
+        // Preenche Infos
+        document.getElementById('modalName').textContent = data.name;
+        document.getElementById('modalLvl').textContent = "Lv. " + data.level;
+        document.getElementById('modalNature').textContent = data.nature;
+        document.getElementById('modalGender').textContent = data.gender;
+        document.getElementById('modalShiny').style.display = data.shiny ? 'inline-block' : 'none';
+        
+        const imgUrl = data.shiny 
+            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${data.apiId}.png`
+            : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${data.apiId}.png`;
+        document.getElementById('modalImg').src = imgUrl;
+
+        // Reset Moves (Remove classes antigas de cor)
+        document.getElementById('modalItem').textContent = "...";
+        for(let i=1; i<=4; i++) {
+            const moveDiv = document.querySelector(`#move${i}`);
+            moveDiv.querySelector('.move-name').textContent = "-";
+            moveDiv.className = "modal-move"; // Reseta para apenas a classe base
+        }
+
+        // Fetch Item
+        if(data.itemId) {
+            fetch(`https://pokeapi.co/api/v2/item/${data.itemId}`).then(r=>r.json())
+                .then(d => document.getElementById('modalItem').textContent = d.name.replace(/-/g, ' '));
+        } else document.getElementById('modalItem').textContent = "Nenhum";
+
+        // Fetch Moves e Aplica Borda
+        data.moves.forEach((moveId, index) => {
+            if(moveId) {
+                fetch(`https://pokeapi.co/api/v2/move/${moveId}`).then(r=>r.json())
+                    .then(d => {
+                        const moveDiv = document.querySelector(`#move${index+1}`);
+                        moveDiv.querySelector('.move-name').textContent = d.name.replace(/-/g, ' ');
+                        // Adiciona a borda colorida baseada no tipo
+                        moveDiv.classList.add(`border-${d.type.name}`);
+                    });
+            }
+        });
+
+        // Gráfico Ciano (Tech Blue - Para parecer holograma na tela)
+        const ctx = document.getElementById('statsChart').getContext('2d');
+        if (myRadarChart) myRadarChart.destroy();
+
+        myRadarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['HP', 'Atk', 'Def', 'Spe', 'SpD', 'SpA'], 
+                datasets: [{
+                    label: 'EVs',
+                    data: [data.evs[0], data.evs[1], data.evs[2], data.evs[5], data.evs[4], data.evs[3]], 
+                    
+                    // CORES CIANO (DIGITAL)
+                    backgroundColor: 'rgba(100, 215, 244, 0.5)', 
+                    borderColor: '#64D7F4',
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#64D7F4',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        pointLabels: { color: '#ccc', font: { family: 'Orbitron', size: 11 } },
+                        ticks: { display: false, max: 252 }, suggestedMin: 0, suggestedMax: 252 
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    function closeModal() { document.getElementById('detailModal').style.display = 'none'; }
+</script>
+{% endblock %}
