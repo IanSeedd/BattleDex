@@ -2926,6 +2926,16 @@ body {
     gap: 10px;
     margin: 15px 0; /* Espaço acima e abaixo */
 }
+    /* Ajuste do Título para caber na curva */
+    .holo-title {
+        text-align: center; color: #fff; font-family: 'Orbitron', sans-serif;
+        text-transform: uppercase; letter-spacing: 6px; 
+        margin-bottom: 40px; margin-top: 10px;
+        font-size: 1.8rem; font-weight: 800;
+        text-shadow: 0 0 15px #64D7F4;
+        border-bottom: 2px solid #D92525;
+        padding-bottom: 15px;
+    }
 
 /* A bolinha colorida */
 .type-badge {
