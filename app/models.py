@@ -185,6 +185,7 @@ class Pokemon(models.Model):
         return self.apelido or f"Pokémon #{self.pokeapi_id}"
     
 class Time(models.Model):
+    ativo = models.BooleanField(default=False) # Se o time está ativo ou não, ou seja, se pode ser selecionado para batalhas
     nome = models.CharField(
         max_length=50,
         blank=True,
@@ -204,10 +205,30 @@ class Time(models.Model):
         blank=True,
         on_delete=models.CASCADE
     )
-    def clean(self):
+    def clean(self): # Validação para garantir que um time não possa pertencer a um usuário e a um NPC ao mesmo tempo
         if bool(self.dono_user) == bool(self.dono_npc):
             raise ValidationError("Um time não pode pertecer a um jogador e a um NPC ao mesmo tempo.")
-
+        
+    def save(self, *args, **kwargs):
+        if self.ativo:
+            # Desativa os outros times do dono sem disparar o save() deles (mais rápido)
+            Time.objects.filter(
+                dono_user=self.dono_user, 
+                dono_npc=self.dono_npc
+            ).exclude(pk=self.pk).update(ativo=False)
+        super().save(*args, **kwargs)
+    @classmethod
+    def get_active_for_user(cls, user):
+        """Retorna o time ativo ou ativa o último criado caso nenhum esteja ativo"""
+        time_ativo = cls.objects.filter(dono_user=user, ativo=True).first()
+        if not time_ativo:
+            ultimo_time = cls.objects.filter(dono_user=user).last()
+            if ultimo_time:
+                ultimo_time.ativo = True
+                ultimo_time.save() 
+                return ultimo_time
+        return time_ativo
+    
     def __str__(self):
         return f"Time #{self.id}"
     
