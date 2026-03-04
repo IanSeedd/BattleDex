@@ -1,1 +1,336 @@
-a
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Batalha Pokémon</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body class="battle-page">
+
+<audio id="bg-music" loop>
+    <source src="https://play.pokemonshowdown.com/audio/bw2-wildbattle.mp3" type="audio/mpeg">
+</audio>
+
+<div class="fullscreen-battle">
+
+    {% if error_message %}
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #161b22; border: 2px solid #D92525; padding: 40px; color: white; text-align: center; font-size: 1.5rem; z-index: 99999; border-radius: 10px;">
+            <p>{{ error_message }}</p>
+            <button onclick="window.history.back()" class="btn-tech" style="margin-top: 20px; padding: 10px 20px;">Voltar para a Box</button>
+        </div>
+    {% endif %}
+
+    <button class="music-btn" id="music-toggle" onclick="toggleMusic()">🔊 LIGAR MÚSICA</button>
+
+    <div class="battle-scene">
+        <div class="base opp-base"></div>
+        <div class="sprite opp-sprite">
+            <img id="opp-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/{{ wild_id }}.gif">
+        </div>
+        
+        <div class="hud opp-hud">
+            <div class="hud-content">
+                <div class="hud-top">
+                    <span class="pkmn-name" id="opp-name">CARREGANDO...</span>
+                    <span class="pkmn-level">Lv 50</span>
+                </div>
+                <div class="hp-bar-bg"><div id="opp-hp-bar" class="hp-bar-fill" style="width: 100%;"></div></div>
+            </div>
+        </div>
+
+        <div class="base player-base"></div>
+        <div class="sprite player-sprite">
+            <img id="player-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/back/{% if active_pokemon.shiny %}shiny/{% endif %}{{ active_pokemon.pokeapi_id|default:'6' }}.gif">
+        </div>
+        
+        <div class="hud player-hud">
+            <div class="hud-content">
+                <div class="hud-top">
+                    <span class="pkmn-name" id="player-name">{{ active_pokemon.apelido|default:"Seu Pokémon" }}</span>
+                    <span class="pkmn-level">Lv 100</span>
+                </div>
+                <div class="hp-bar-bg"><div id="player-hp-bar" class="hp-bar-fill" style="width: 100%;"></div></div>
+                <div class="hp-text"><span id="player-curr-hp">...</span> / <span id="player-max-hp">...</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="battle-ui">
+        <div class="message-box" id="msg-box">
+            Iniciando simulação de batalha...
+        </div>
+
+        <div class="action-menu hidden" id="main-menu">
+            <button class="btn-tech btn-fight" onclick="switchMenu('moves-menu')">LUTAR</button>
+            <button class="btn-tech" onclick="switchMenu('team-menu')">POKÉMON</button>
+            <div style="visibility: hidden;"></div> <button class="btn-tech" onclick="window.history.back()">FUGIR</button>
+        </div>
+
+        <div class="action-menu hidden" id="moves-menu">
+            <button class="move-btn btn-loading" id="mbtn-0" onclick="executeAttack(0)">
+                <span class="move-name">-</span>
+                <div class="move-infos">
+                    <span class="type-badge" id="mtype-0">-</span>
+                    <span class="move-pp" id="mpp-0">PP --/--</span>
+                </div>
+            </button>
+            <button class="move-btn btn-loading" id="mbtn-1" onclick="executeAttack(1)">
+                <span class="move-name">-</span>
+                <div class="move-infos">
+                    <span class="type-badge" id="mtype-1">-</span>
+                    <span class="move-pp" id="mpp-1">PP --/--</span>
+                </div>
+            </button>
+            <button class="move-btn btn-loading" id="mbtn-2" onclick="executeAttack(2)">
+                <span class="move-name">-</span>
+                <div class="move-infos">
+                    <span class="type-badge" id="mtype-2">-</span>
+                    <span class="move-pp" id="mpp-2">PP --/--</span>
+                </div>
+            </button>
+            <button class="move-btn btn-loading" id="mbtn-3" onclick="executeAttack(3)">
+                <span class="move-name">-</span>
+                <div class="move-infos">
+                    <span class="type-badge" id="mtype-3">-</span>
+                    <span class="move-pp" id="mpp-3">PP --/--</span>
+                </div>
+            </button>
+            <button class="btn-tech btn-back" onclick="switchMenu('main-menu')">VOLTAR</button>
+        </div>
+
+        <div class="action-menu hidden" id="team-menu" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 40px; gap: 10px;">
+            <div style="grid-column: 1/-1; color: #64D7F4; text-align:center; font-weight:bold; z-index: 50; height: 20px;">Sua Equipe:</div>
+            
+            {% for pkmn in team_pokemons %}
+                <button class="btn-tech" style="font-size:0.8rem;" onclick="swapPokemon(
+                    '{{ pkmn.apelido|default:'Pokemon' }}',
+                    'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-v/black-white/animated/back/{% if pkmn.shiny %}shiny/{% endif %}{{ pkmn.pokeapi_id }}.gif',
+                    '{{ pkmn.move_1|default:'' }}', '{{ pkmn.move_2|default:'' }}', '{{ pkmn.move_3|default:'' }}', '{{ pkmn.move_4|default:'' }}',
+                    '{{ pkmn.pokeapi_id|default:'6' }}'
+                )">
+                    {{ pkmn.apelido|default:"Pokemon" | title }}
+                </button>
+            {% endfor %}
+
+            <button class="btn-tech" style="grid-column: 1/-1; height: 100%; margin: 0;" onclick="switchMenu('main-menu')">VOLTAR</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let player = { id: '{{ active_pokemon.pokeapi_id|default:"6" }}', level: 100, maxHp: 300, currentHp: 300, stats: {hp:300, attack:100, defense:100, spa:100, spd:100, speed:100}, types: ['normal'], moves: [] };
+    let opp = { id: '{{ wild_id|default:"25" }}', level: 50, maxHp: 150, currentHp: 150, stats: {hp:150, attack:50, defense:50, spa:50, spd:50, speed:50}, types: ['normal'], name: 'SELVAGEM' };
+    
+    function calcStats(baseStatsArr, level) {
+        if (!baseStatsArr) return { hp: 300, attack: 100, defense: 100, spa: 100, spd: 100, speed: 100 };
+        let stats = {};
+        baseStatsArr.forEach(s => {
+            let base = s.base_stat;
+            if (s.stat.name === 'hp') {
+                stats.hp = Math.floor(0.01 * (2 * base + 31) * level) + level + 10;
+            } else {
+                let name = s.stat.name === 'special-attack' ? 'spa' : s.stat.name === 'special-defense' ? 'spd' : s.stat.name;
+                stats[name] = Math.floor(0.01 * (2 * base + 31) * level) + 5;
+            }
+        });
+        return stats;
+    }
+
+    async function fetchOpponent() {
+        try {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${opp.id}/`);
+            if (!res.ok) return;
+            const data = await res.json();
+            opp.name = data.name.toUpperCase();
+            if(data.types) opp.types = data.types.map(t => t.type.name);
+            if(data.stats) opp.stats = calcStats(data.stats, opp.level);
+            opp.maxHp = opp.stats.hp || 150;
+        } catch(e) { console.warn("Inimigo: Usando status padrão"); }
+    }
+
+    async function fetchPlayerStats(pokeapi_id) {
+        try {
+            const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokeapi_id}/`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if(data.types) player.types = data.types.map(t => t.type.name);
+            if(data.stats) player.stats = calcStats(data.stats, player.level);
+            player.maxHp = player.stats.hp || 300;
+        } catch(e) { console.warn("Player: Usando status padrão"); }
+    }
+
+    async function fetchMoves(m1, m2, m3, m4) {
+        const ids = [m1, m2, m3, m4];
+        player.moves = []; 
+        for(let i=0; i<4; i++) {
+            let btn = document.getElementById(`mbtn-${i}`);
+            let nameSpan = btn.querySelector('.move-name');
+            let typeSpan = btn.querySelector('.type-badge');
+            let ppSpan = btn.querySelector('.move-pp');
+            
+            btn.classList.add('btn-loading');
+            btn.disabled = false;
+            
+            if (ids[i] && ids[i] !== 'None' && ids[i] !== '') {
+                try {
+                    const res = await fetch(`https://pokeapi.co/api/v2/move/${ids[i]}/`);
+                    if (!res.ok) throw new Error();
+                    const data = await res.json();
+                    
+                    const ppMax = data.pp || 35; 
+
+                    player.moves.push({
+                        name: data.name, power: data.power || 50, type: data.type ? data.type.name : 'normal',
+                        damage_class: data.damage_class ? data.damage_class.name : 'physical', max_pp: ppMax, current_pp: ppMax 
+                    });
+                    
+                    nameSpan.innerText = data.name.replace(/-/g, ' ').toUpperCase();
+                    const typeName = data.type ? data.type.name : 'normal';
+                    typeSpan.innerText = typeName.toUpperCase();
+                    typeSpan.className = `type-badge type-${typeName}`;
+                    
+                    ppSpan.innerText = `PP ${player.moves[i].current_pp}/${player.moves[i].max_pp}`;
+                    ppSpan.style.color = '#8b949e';
+
+                } catch(e) {
+                    player.moves.push({ name: "Struggle", power: 50, type: 'normal', damage_class: 'physical', max_pp: 1, current_pp: 1 });
+                    nameSpan.innerText = "STRUGGLE"; typeSpan.innerText = "NORMAL"; typeSpan.className = "type-badge type-normal";
+                    ppSpan.innerText = "PP 1/1";
+                }
+            } else {
+                player.moves.push(null);
+                nameSpan.innerText = "-"; typeSpan.innerText = "-"; typeSpan.className = "type-badge type-normal";
+                ppSpan.innerText = "PP --/--"; btn.disabled = true; 
+            }
+            btn.classList.remove('btn-loading');
+        }
+    }
+
+    async function initBattle() {
+        await Promise.allSettled([
+            fetchOpponent(), fetchPlayerStats(player.id),
+            fetchMoves('{{ active_pokemon.move_1|default:"" }}', '{{ active_pokemon.move_2|default:"" }}', '{{ active_pokemon.move_3|default:"" }}', '{{ active_pokemon.move_4|default:"" }}')
+        ]);
+        forceUnlockUI();
+    }
+
+    function forceUnlockUI() {
+        try { document.getElementById('opp-name').innerText = opp.name; } catch(e){}
+        player.currentHp = player.maxHp; opp.currentHp = opp.maxHp;
+        try { document.getElementById('player-max-hp').innerText = player.maxHp; } catch(e){}
+        updateHpUI('player'); updateHpUI('opp');
+        try { document.getElementById('msg-box').innerHTML = "Um Pokémon Selvagem apareceu!<br>O que você vai fazer?"; } catch(e){}
+        switchMenu('main-menu');
+    }
+
+    function calculateDamage(attacker, defender, move) {
+        if (!move || move.power === 0) return 0;
+        let A = move.damage_class === 'special' ? attacker.stats.spa : attacker.stats.attack;
+        let D = move.damage_class === 'special' ? defender.stats.spd : defender.stats.defense;
+        let baseDmg = Math.floor(Math.floor(Math.floor(2 * attacker.level / 5 + 2) * move.power * A / D) / 50) + 2;
+        let stab = attacker.types.includes(move.type) ? 1.5 : 1.0;
+        let randomFactor = (Math.floor(Math.random() * 16) + 85) / 100;
+        return Math.floor(baseDmg * stab * randomFactor);
+    }
+
+    function updateHpUI(target) {
+        try {
+            let obj = target === 'player' ? player : opp;
+            let percent = (obj.currentHp / obj.maxHp) * 100;
+            if(isNaN(percent)) percent = 100; 
+            let bar = document.getElementById(`${target}-hp-bar`);
+            bar.style.width = `${Math.max(0, percent)}%`;
+            if (target === 'player') document.getElementById('player-curr-hp').innerText = obj.currentHp;
+            
+            if (percent > 50) { bar.style.background = '#4caf50'; } 
+            else if (percent > 20) { bar.style.background = '#ffeb3b'; } 
+            else { bar.style.background = '#f44336'; }
+        } catch(e) {}
+    }
+
+    function updatePPUI(moveIndex) {
+        let move = player.moves[moveIndex];
+        if (move) {
+            let ppSpan = document.getElementById(`mpp-${moveIndex}`);
+            ppSpan.innerText = `PP ${move.current_pp}/${move.max_pp}`;
+            if (move.current_pp === 0) { ppSpan.style.color = '#d32f2f'; document.getElementById(`mbtn-${moveIndex}`).disabled = true; } 
+            else if (move.current_pp <= move.max_pp * 0.2) { ppSpan.style.color = '#d68910'; }
+        }
+    }
+
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    async function executeAttack(moveIndex) {
+        let move = player.moves[moveIndex];
+        if(!move || move.current_pp <= 0) return;
+        move.current_pp -= 1; updatePPUI(moveIndex);
+        switchMenu(null);
+        const msg = document.getElementById('msg-box');
+        const pName = document.getElementById('player-name').innerText;
+        
+        msg.innerHTML = `${pName} usou ${move.name.toUpperCase()}!`;
+        await sleep(1500);
+
+        let dmg = calculateDamage(player, opp, move);
+        if (move.power > 0) {
+            opp.currentHp = Math.max(0, opp.currentHp - dmg); updateHpUI('opp');
+            document.getElementById('opp-img').style.opacity = '0';
+            setTimeout(() => document.getElementById('opp-img').style.opacity = '1', 150);
+            msg.innerHTML = `Causou ${dmg} de dano!`;
+        } else { msg.innerHTML = "Mas falhou..."; }
+        await sleep(2000);
+
+        if (opp.currentHp <= 0) { msg.innerHTML = "Oponente selvagem desmaiou! Você venceu!"; return; }
+
+        msg.innerHTML = `Oponente selvagem contra-atacou!`;
+        await sleep(1500);
+
+        let oppMove = { power: 65, damage_class: 'physical', type: opp.types[0] || 'normal' };
+        let oppDmg = calculateDamage(opp, player, oppMove);
+        player.currentHp = Math.max(0, player.currentHp - oppDmg); updateHpUI('player');
+        document.getElementById('player-img').style.opacity = '0';
+        setTimeout(() => document.getElementById('player-img').style.opacity = '1', 150);
+        
+        msg.innerHTML = `Você sofreu ${oppDmg} de dano!`;
+        await sleep(2000);
+
+        if (player.currentHp <= 0) { msg.innerHTML = "Seu Pokémon desmaiou! Você perdeu a batalha..."; return; }
+        msg.innerHTML = "O que você vai fazer?"; switchMenu('main-menu');
+    }
+
+    async function swapPokemon(nome, imgUrl, id1, id2, id3, id4, pokeapiId) {
+        switchMenu(null); const msg = document.getElementById('msg-box');
+        msg.innerHTML = `Retorne! Vai ${nome.toUpperCase()}!`;
+        document.getElementById('player-img').style.transform = 'scale(0)';
+        
+        await sleep(800);
+        player.id = pokeapiId; 
+        document.getElementById('player-name').innerText = nome.toUpperCase();
+        document.getElementById('player-img').src = imgUrl;
+        
+        await Promise.allSettled([ fetchPlayerStats(pokeapiId), fetchMoves(id1, id2, id3, id4) ]);
+        player.currentHp = player.maxHp; document.getElementById('player-max-hp').innerText = player.maxHp; updateHpUI('player');
+        document.getElementById('player-img').style.transform = 'scale(1.3)';
+        
+        await sleep(1000);
+        msg.innerHTML = "O que você vai fazer?"; switchMenu('main-menu');
+    }
+
+    function switchMenu(menuId) {
+        document.querySelectorAll('.action-menu').forEach(el => el.classList.add('hidden'));
+        if(menuId) document.getElementById(menuId).classList.remove('hidden');
+    }
+
+    let isPlaying = false;
+    function toggleMusic() {
+        const audio = document.getElementById('bg-music'); const btn = document.getElementById('music-toggle');
+        if(isPlaying) { audio.pause(); btn.innerHTML = "🔊 LIGAR MÚSICA"; isPlaying = false; } 
+        else { audio.volume = 0.3; audio.play(); btn.innerHTML = "🔇 DESLIGAR MÚSICA"; isPlaying = true; }
+    }
+
+    window.onload = initBattle;
+</script>
+</body>
+</html>

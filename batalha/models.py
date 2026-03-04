@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
-from app.models import Pokemon, Time, NPC  # assumindo que seu app principal se chama 'main_app'
+from app.models import Pokemon, Time, NPC 
 
 class Battle(models.Model): # A batalha em si, só cria o models quando a batalha é de fato confirmada
     """Modelo principal que representa uma batalha"""

@@ -3097,3 +3097,301 @@ select.tech-select {
 .pokemon-dropdown-list::-webkit-scrollbar-track, .item-list::-webkit-scrollbar-track { background: #0d1117; }
 .pokemon-dropdown-list::-webkit-scrollbar-thumb, .item-list::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
 .pokemon-dropdown-list::-webkit-scrollbar-thumb:hover, .item-list::-webkit-scrollbar-thumb:hover { background: #58a6ff; }
+
+body.battle-page, html.battle-page { 
+    margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden !important; 
+    background-color: #050814; color: #c9d1d9; font-family: 'Poppins', sans-serif; 
+}
+.fullscreen-battle { display: flex; flex-direction: column; width: 100vw; height: 100vh; position: relative; }
+
+/* BOTÃO DA MÚSICA */
+.music-btn { 
+    position: absolute; top: 20px; right: 20px; z-index: 9999; 
+    background: #0d1117; border: 1px solid #64D7F4; color: #64D7F4; 
+    padding: 10px 15px; border-radius: 8px; cursor: pointer; 
+    font-family: 'Poppins', sans-serif; font-weight: bold; 
+}
+.music-btn:hover { background: #64D7F4; color: #000; box-shadow: 0 0 15px rgba(100,215,244,0.5); }
+
+/* FUNDO DA ARENA 3D NEON */
+.battle-scene { 
+    flex: 1; position: relative; 
+    background: radial-gradient(circle at top, #0d1b2a 0%, #02040a 80%); 
+    overflow: hidden; 
+}
+.battle-scene::before {
+    content: ''; position: absolute; top: 50%; left: -50%; width: 200%; height: 100%;
+    background-image:
+        linear-gradient(rgba(100, 215, 244, 0.6) 2px, transparent 2px),
+        linear-gradient(90deg, rgba(100, 215, 244, 0.6) 2px, transparent 2px);
+    background-size: 60px 60px;
+    transform: perspective(600px) rotateX(70deg);
+    transform-origin: top center;
+    box-shadow: inset 0 150px 100px -50px #02040a; 
+    z-index: 1;
+}
+
+/* =========================================
+   PLATAFORMAS DE POKÉBOLA
+   ========================================= */
+.base { 
+    position: absolute; 
+    border-radius: 50%; 
+    transform: rotateX(70deg); 
+    z-index: 5; 
+    background: linear-gradient(180deg, #D92525 47%, #1a1a1a 47%, #1a1a1a 53%, #f8f8f8 53%);
+    border: 5px solid #1a1a1a;
+    box-shadow: 0 20px 30px rgba(0,0,0,0.8);
+}
+.base::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20%;
+    height: 20%;
+    background: #f8f8f8;
+    border: 5px solid #1a1a1a;
+    border-radius: 50%;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+.opp-base { top: 32%; right: 18%; width: 280px; height: 280px; }
+.player-base { bottom: -15%; left: 22%; width: 400px; height: 400px; }
+
+/* =========================================
+   SPRITES (SEM SOMBRA)
+   ========================================= */
+.sprite { position: absolute; z-index: 10; }
+.sprite img { width: 220px; image-rendering: pixelated; filter: none !important; } 
+
+.opp-sprite { top: 22%; right: 20%; } 
+.player-sprite { bottom: 8%; left: 26.5%; transform: scale(1.4); transform-origin: bottom center; } 
+
+/* =========================================
+   HUD: ESTILO BLACK & WHITE CSS CLÁSSICO
+   ========================================= */
+.hud {
+  position: absolute;
+  background-color: #f0f0f0; 
+  border: 4px solid #333333; 
+  padding: 8px 15px;
+  z-index: 20;
+  color: #333333; 
+  font-family: 'Poppins', sans-serif; 
+  box-shadow: 4px 4px 0 rgba(0,0,0,0.3); 
+}
+.opp-hud {
+  top: 8%; left: 8%; width: 300px; border-top: 5px solid #D92525; border-bottom-right-radius: 30px; transform: skewX(-15deg); 
+}
+.player-hud {
+  bottom: 25%; right: 8%; width: 350px; border-top: 5px solid #64D7F4; border-top-left-radius: 30px; transform: skewX(15deg); 
+}
+
+.hud-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 2px solid #dddddd; }
+.opp-hud .hud-top { transform: skewX(15deg); margin-left: -5px; }
+.player-hud .hud-top { transform: skewX(-15deg); margin-right: -5px; }
+
+.pkmn-name { font-weight: 800; font-size: 1.3rem; text-transform: uppercase; font-family: 'Poppins', sans-serif; letter-spacing: 1px; color: #000; }
+.pkmn-level { font-weight: 600; font-size: 1rem; color: #666666; }
+
+.hp-bar-bg { width: 100%; height: 12px; background-color: #dddddd; border-radius: 6px; border: 2px solid #999999; overflow: hidden; position: relative; }
+.opp-hud .hp-bar-bg { transform: skewX(15deg); margin-left: -5px; }
+.player-hud .hp-bar-bg { transform: skewX(-15deg); margin-right: -5px; }
+
+.hp-bar-fill { height: 100%; transition: width 0.3s ease, background-color 0.3s ease; background-image: repeating-linear-gradient(90deg, currentColor 0%, currentColor 85%, transparent 85%, transparent 100%); background-size: 10px 100%; }
+.hp-text { text-align: right; font-weight: 700; font-size: 1.1rem; margin-top: 5px; color: #333333; font-family: 'Poppins', sans-serif; }
+.player-hud .hp-text { transform: skewX(-15deg); }
+
+#player-name::after { content: ' ♂'; font-size: 1rem; color: #6890F0; }
+#opp-name::after { content: ' ♂'; font-size: 1rem; color: #6890F0; }
+
+/* =========================================
+   UI INFERIOR (FUNDO CIANO + ANIMAÇÃO NOVA)
+   ========================================= */
+.battle-ui { 
+    height: 300px; 
+    display: flex; 
+    background: #0b1a26; /* Fundo ciano escuro */
+    border-top: 5px solid #D92525; 
+    padding: 20px; gap: 20px; box-sizing: border-box; 
+    position: relative; z-index: 30; overflow: hidden; 
+}
+
+/* 1. ANIMAÇÃO DE POKÉBOLAS (Flutuando na diagonal, marca d'água elegante) */
+.battle-ui::before {
+    content: ""; 
+    position: absolute; 
+    top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 34; 
+    pointer-events: none;
+    opacity: 0.08; /* Suave para não atrapalhar os textos */
+    background-image: url('https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Pok%C3%A9_Ball_icon.svg/960px-Pok%C3%A9_Ball_icon.svg.png');
+    background-repeat: repeat;
+    background-size: 60px 60px; /* Tamanho da Pokébola na marca d'água */
+    animation: driftPokeballs 40s linear infinite; /* Movimento lento e contínuo */
+}
+
+/* Loop perfeito deslizando para cima e para a esquerda */
+@keyframes driftPokeballs {
+    0% { background-position: 0px 0px; }
+    100% { background-position: 600px -600px; } /* Múltiplo do background-size para não "pular" */
+}
+
+/* 2. SCANLINES FIXAS (Apenas as linhas, SEM o feixe de luz que desce) */
+.battle-ui::after {
+    content: ""; 
+    position: absolute; 
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.4) 50%); 
+    background-size: 100% 4px; /* Linhas horizontais */
+    z-index: 35; 
+    pointer-events: none;
+    /* ANIMAÇÃO REMOVIDA AQUI, AGORA É 100% ESTÁTICO */
+}
+
+/* Conteúdo da UI Inferior */
+.message-box, .action-menu { position: relative; z-index: 40; height: 100%; box-sizing: border-box; margin: 0; } 
+
+.message-box { 
+    flex: 1.5; padding: 25px; background: #02040a; border-radius: 8px; border: 2px solid #64D7F4; 
+    box-shadow: inset 0 0 30px rgba(100, 215, 244, 0.1); display: flex; align-items: center; color: #e0f7fa; 
+    text-shadow: 0 0 5px rgba(100, 215, 244, 0.4); font-family: 'Poppins', sans-serif; font-weight: 500; font-size: 1.4rem; 
+}
+.action-menu { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; }
+.action-menu.hidden { display: none !important; }
+#moves-menu { grid-template-rows: 1fr 1fr 40px !important; gap: 10px; }
+
+.btn-tech { 
+    background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px; 
+    font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.1rem; 
+    cursor: pointer; text-transform: uppercase; transition: all 0.2s; 
+}
+.btn-tech:hover { background: #1f6feb; border-color: #58a6ff; box-shadow: 0 0 15px rgba(88,166,255,0.4); color: white; }
+.btn-fight { border-bottom: 3px solid #D92525; }
+.btn-fight:hover { background: #D92525; border-color: #ff4d4d; box-shadow: 0 0 15px rgba(217,37,37,0.5); }
+
+/* =========================================
+   BOTÕES DE GOLPES (LAYOUT CORRIGIDO)
+   ========================================= */
+.move-btn {
+    display: flex; flex-direction: column; justify-content: space-between;
+    background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px;
+    font-family: 'Poppins', sans-serif; cursor: pointer; transition: all 0.2s;
+    padding: 12px 15px; height: 100%; box-sizing: border-box; text-align: left;
+    border-bottom: 5px solid #30363d; /* Linha grossa padrão */
+}
+
+.move-btn:disabled, .btn-tech:disabled { opacity: 0.5; cursor: not-allowed; background: #0d1117; border-bottom: 5px solid #30363d !important; }
+.btn-loading { opacity: 0.5; pointer-events: none; }
+
+.move-name { 
+    font-weight: 800; font-size: 1.15rem; color: #fff; 
+    margin-bottom: auto; /* Empurra o nome pra cima e as infos pra baixo */
+    text-transform: uppercase; letter-spacing: 0.5px; 
+}
+
+/* Área que segura a Badge e o PP */
+.move-infos { 
+    display: flex; justify-content: space-between; align-items: center; 
+    width: 100%; margin-top: 12px; font-size: 0.85rem; font-weight: 600; color: #8b949e; 
+}
+.move-pp { font-family: monospace; font-size: 0.95rem; }
+
+#moves-menu .btn-back { grid-column: 1 / -1; height: 100%; margin: 0; border-bottom: 3px solid #30363d; }
+#moves-menu .btn-back:hover { border-color: #58a6ff; }
+
+/* =========================================
+   A BADGE PERFEITA (NUNCA MAIS DEFORMA)
+   ========================================= */
+.type-badge { 
+    display: inline-block;
+    padding: 4px 8px; 
+    border-radius: 4px; 
+    color: #ffffff !important; /* Força branco absoluto */
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.8) !important; /* Sombra preta dura para dar leitura */
+    font-weight: 800; 
+    font-size: 0.75rem; 
+    text-transform: uppercase; 
+    text-align: center;
+    line-height: 1;
+    white-space: nowrap; /* Impede o texto de quebrar linha e amassar */
+    
+    /* TRAVAS DE TAMANHO PRA NÃO VIRAR CÍRCULO NEM QUADRADÃO */
+    height: auto !important; 
+    width: auto !important;
+    min-width: 65px; 
+    flex-shrink: 0; 
+    
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.3); 
+    border: 1px solid rgba(0,0,0,0.4);
+}
+
+/* Cores Oficiais das Badges */
+.type-normal   { background-color: #A8A878; } .type-fire     { background-color: #F08030; }
+.type-water    { background-color: #6890F0; } .type-electric { background-color: #F8D030; }
+.type-grass    { background-color: #78C850; } .type-ice      { background-color: #98D8D8; }
+.type-fighting { background-color: #C03028; } .type-poison   { background-color: #A040A0; }
+.type-ground   { background-color: #E0C068; } .type-flying   { background-color: #A890F0; }
+.type-psychic  { background-color: #F85888; } .type-bug      { background-color: #A8B820; }
+.type-rock     { background-color: #B8A038; } .type-ghost    { background-color: #705898; }
+.type-dragon   { background-color: #7038F8; } .type-dark     { background-color: #705848; }
+.type-steel    { background-color: #B8B8D0; } .type-fairy    { background-color: #EE99AC; }
+
+/* =========================================
+   MÁGICA CSS: CORES DAS LINHAS DOS BOTÕES 
+   ========================================= */
+.move-btn:has(.type-normal):not(.btn-loading) { border-bottom-color: #A8A878; }
+.move-btn:has(.type-normal):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #A8A878; box-shadow: 0 0 15px rgba(168, 168, 120, 0.4); }
+
+.move-btn:has(.type-fire):not(.btn-loading)   { border-bottom-color: #F08030; }
+.move-btn:has(.type-fire):hover:not(.btn-loading):not(:disabled)   { background: #0b0f19; border-color: #F08030; box-shadow: 0 0 15px rgba(240, 128, 48, 0.4); }
+
+.move-btn:has(.type-water):not(.btn-loading)  { border-bottom-color: #6890F0; }
+.move-btn:has(.type-water):hover:not(.btn-loading):not(:disabled)  { background: #0b0f19; border-color: #6890F0; box-shadow: 0 0 15px rgba(104, 144, 240, 0.4); }
+
+.move-btn:has(.type-electric):not(.btn-loading) { border-bottom-color: #F8D030; }
+.move-btn:has(.type-electric):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #F8D030; box-shadow: 0 0 15px rgba(248, 208, 48, 0.4); }
+
+.move-btn:has(.type-grass):not(.btn-loading)  { border-bottom-color: #78C850; }
+.move-btn:has(.type-grass):hover:not(.btn-loading):not(:disabled)  { background: #0b0f19; border-color: #78C850; box-shadow: 0 0 15px rgba(120, 200, 80, 0.4); }
+
+.move-btn:has(.type-ice):not(.btn-loading)    { border-bottom-color: #98D8D8; }
+.move-btn:has(.type-ice):hover:not(.btn-loading):not(:disabled)    { background: #0b0f19; border-color: #98D8D8; box-shadow: 0 0 15px rgba(152, 216, 216, 0.4); }
+
+.move-btn:has(.type-fighting):not(.btn-loading) { border-bottom-color: #C03028; }
+.move-btn:has(.type-fighting):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #C03028; box-shadow: 0 0 15px rgba(192, 48, 40, 0.4); }
+
+.move-btn:has(.type-poison):not(.btn-loading) { border-bottom-color: #A040A0; }
+.move-btn:has(.type-poison):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #A040A0; box-shadow: 0 0 15px rgba(160, 64, 160, 0.4); }
+
+.move-btn:has(.type-ground):not(.btn-loading) { border-bottom-color: #E0C068; }
+.move-btn:has(.type-ground):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #E0C068; box-shadow: 0 0 15px rgba(224, 192, 104, 0.4); }
+
+.move-btn:has(.type-flying):not(.btn-loading) { border-bottom-color: #A890F0; }
+.move-btn:has(.type-flying):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #A890F0; box-shadow: 0 0 15px rgba(168, 144, 240, 0.4); }
+
+.move-btn:has(.type-psychic):not(.btn-loading) { border-bottom-color: #F85888; }
+.move-btn:has(.type-psychic):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #F85888; box-shadow: 0 0 15px rgba(248, 88, 136, 0.4); }
+
+.move-btn:has(.type-bug):not(.btn-loading)    { border-bottom-color: #A8B820; }
+.move-btn:has(.type-bug):hover:not(.btn-loading):not(:disabled)    { background: #0b0f19; border-color: #A8B820; box-shadow: 0 0 15px rgba(168, 184, 32, 0.4); }
+
+.move-btn:has(.type-rock):not(.btn-loading)   { border-bottom-color: #B8A038; }
+.move-btn:has(.type-rock):hover:not(.btn-loading):not(:disabled)   { background: #0b0f19; border-color: #B8A038; box-shadow: 0 0 15px rgba(184, 160, 56, 0.4); }
+
+.move-btn:has(.type-ghost):not(.btn-loading)  { border-bottom-color: #705898; }
+.move-btn:has(.type-ghost):hover:not(.btn-loading):not(:disabled)  { background: #0b0f19; border-color: #705898; box-shadow: 0 0 15px rgba(112, 88, 152, 0.4); }
+
+.move-btn:has(.type-dragon):not(.btn-loading) { border-bottom-color: #7038F8; }
+.move-btn:has(.type-dragon):hover:not(.btn-loading):not(:disabled) { background: #0b0f19; border-color: #7038F8; box-shadow: 0 0 15px rgba(112, 56, 248, 0.4); }
+
+.move-btn:has(.type-dark):not(.btn-loading)   { border-bottom-color: #705848; }
+.move-btn:has(.type-dark):hover:not(.btn-loading):not(:disabled)   { background: #0b0f19; border-color: #705848; box-shadow: 0 0 15px rgba(112, 88, 72, 0.4); }
+
+.move-btn:has(.type-steel):not(.btn-loading)  { border-bottom-color: #B8B8D0; }
+.move-btn:has(.type-steel):hover:not(.btn-loading):not(:disabled)  { background: #0b0f19; border-color: #B8B8D0; box-shadow: 0 0 15px rgba(184, 184, 208, 0.4); }
+
+.move-btn:has(.type-fairy):not(.btn-loading)  { border-bottom-color: #EE99AC; }
+.move-btn:has(.type-fairy):hover:not(.btn-loading):not(:disabled)  { background: #0b0f19; border-color: #EE99AC; box-shadow: 0 0 15px rgba(238, 153, 172, 0.4); }
